@@ -1,0 +1,56 @@
+You are an expert front-end architect and mobile PWA engineer. Build a 100% local, zero-server Progressive Web App (PWA) named "Famerang" (Family + Boomerang) for creating children's storybooks. 
+
+### CRITICAL ARCHITECTURAL CONSTRAINT (ZERO-SERVER / PURE CLIENT-SIDE)
+- There is NO backend server, NO Express API, and NO centralized database cloud. 
+- All data storage, image manipulation, database queries, and document generation MUST happen purely locally on the user's mobile phone within the browser sandbox.
+- For data storage, use a local client-side SQLite database running in the browser via WebAssembly (Wasm) combined with the Origin Private File System (OPFS), OR a robust in-browser client-side storage engine (like Dexie.js / IndexedDB) to store base64 assets and booklet parameters securely on-device.
+
+### Tech Stack
+- Frontend: React (v18), TypeScript, Tailwind CSS, shadcn/ui components, Wouter (hash-based or client-side routing), and TanStack React Query (managing local state/caches).
+- Local Storage: Browser-based SQLite Wasm + OPFS, or IndexedDB.
+- Document/Archive Generation: jsPDF (pure client-side PDF generation), JSZip (pure client-side ZIP bundling).
+
+### Core Data Requirements & Schema
+1. Unified Image/Stamp Scaling: Page dimensions must support square canvas options configured per booklet: 2100x2100 px (Default 7"x7"), 2400x2400 px (8"x8"), or 2700x2700 px (9"x9").
+2. Client-Side Schema (Relational structure inside local storage):
+   - `booklets`: id, title, canvas_size (default 2100), font_family (default 'Comic Sans'), font_size (default 60), created_at, updated_at.
+   - `pages`: id, booklet_id, photo_data_url (base64 text), text_content, text_placement ('above' or 'below'), sort_order.
+   - `stamp_packages`: id, name, created_at.
+   - `stamps`: id, package_id, name, png_data_url (base64 text), content_hash (for deduplication).
+   - `page_stamps`: id, page_id, stamp_id, x_ratio, y_ratio (floats from 0.0 to 1.0 representing relative center alignment on the canvas).
+3. Memory-Safe Local Scaling: When a user uploads a photo via the native file input, immediately use a client-side HTML canvas to downscale/crop the image to match the booklet's chosen target square dimensions (e.g., 2100x2100 px) BEFORE converting it to a base64 data URL and writing it to local device storage. This protects local storage space.
+
+### Feature Specifications & UI Pages
+Implement a clean, bottom-navigation or top-header tabbed layout optimized exclusively for mobile phone viewports and touch interaction:
+
+1. Booklet Management & List View (`/`)
+   - Local CRUD operations for booklets. Display cards sorted by last-modified date with relative human-readable timestamps ("Updated 2 hours ago").
+   - Booklet Details/Settings modal or screen to adjust title, canvas square size, font family (default Comic Sans), and font size (default 60).
+
+2. Parallel Stamp Asset Management View (`/stamps`)
+   - Top-level track parallel to the booklet list to manage reusable stamp packages across multiple books.
+   - Local CRUD operations for Stamp Packages (add, rename, delete collections).
+   - Ability to add transparent PNG files into packages using the native mobile file picker. Maintain an inline list where users can upload or rename individual stamps locally.
+   - Dependency Protection: Display a reference count showing how many booklets a stamp is active in. If a stamp's reference count > 0, throw a clear warning modal blocking the delete operation unless confirmed.
+
+3. Mobile Page Editor (`/booklet/:id/page/:pageId`)
+   - Strict layout layout constraint: One photo per page (no collage layouts).
+   - Text Area layout controls: A single text input supporting variable-length multi-line wrapping, with a toggle button for "Text Above" or "Text Below" the photo. 
+   - Adaptive Mobile Compositing: Use an HTML Canvas layout system to dynamically scale the photo box and automatically wrap multi-line text entirely client-side, ensuring text and imagery adaptively fit completely within the target square page bounds on the phone screen without cutting off.
+   - Stamp Grid Placement Interface: When a user selects a stamp from a stamp package, overlay a discrete placement grid (e.g., a 3x3 or 4x4 coordinate overlay) on top of the canvas preview. Tapping a cell instantly places the stamp centered on that grid cell, saving its position as relative floats (x_ratio, y_ratio). Tapping a new cell moves it; tapping "Confirm" or selecting a new stamp freezes the layer so additional stamps can be stacked sequentially.
+
+4. Page Ordering (`/booklet/:id/order`)
+   - A dedicated mobile-optimized view using a touch-responsive drag-and-drop interface to easily reorder booklet pages. Ensure database sequence numbers are re-ordered atomically within local storage.
+
+5. Previews & Export Options (`/booklet/:id/export`)
+   - 1-Up Draft PDF: Client-side jsPDF generation that downscales page canvases into a fast-loading portrait document centered on standard sheets for rapid proofing.
+   - Published Version PDF: Generates a high-quality PDF binding full-resolution composited canvas images together completely client-side.
+   - Export Page Images: Compiles all high-res composited page images into a single ZIP file downloaded locally.
+   - Instant Video Preview: A lightweight client-side playback window (using requestAnimationFrame or canvas-to-video loops if required, or simply an animated image timeline) that strings together the final composited page images sequentially, showing each page for exactly 3 seconds.
+   - Native Web Share Integration: Leverage the browser's native `navigator.share()` API. Immediately upon compiling either the 1-Up Draft PDF or the Instant Video Preview, trigger the OS mobile share sheet so users can text, email, or AirDrop the output file natively.
+
+6. Sandbox Backup & Restore Utility
+   - Export a unified project archive `.zip` file containing a dump of the client-side database/JSON state, all raw image assets, custom stamp packages, and underlying parameters.
+   - Provide a file upload drop zone to Restore from this ZIP file, unpacking assets and safely overwriting or appending the local browser states. Trigger native file-picker dialogs (`showSaveFilePicker` / `showOpenFilePicker` or fallback inputs) so users can seamlessly browse to cloud-mounted directories (i.e. iOS Files/iCloud or Android Google Drive paths) to select their backup files or choose where to write them.
+
+Build out a beautiful, highly performant, completely decentralized mobile app experience using Tailwind CSS v4. Ensure all image arrays are handled cleanly to prevent mobile browser memory leaks.
