@@ -72,11 +72,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <HeaderOverrideContext.Provider value={ctxValue}>
       <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans selection:bg-primary/20 pb-8">
         <header className="sticky top-0 z-30 h-16 bg-card border-b-2 border-border px-4 flex items-center justify-between shadow-sm">
-          <Link href="/" className="font-serif text-2xl font-bold text-primary flex items-center gap-2">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12Z" fill="currentColor" fillOpacity="0.2"/>
-              <path d="M7 15L12 9L17 15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <Link href="/" className="font-serif text-2xl font-bold text-primary">
             Famerang
           </Link>
           <nav className="flex items-center gap-1">{rightContent}</nav>
