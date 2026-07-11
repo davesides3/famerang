@@ -1,44 +1,55 @@
-# [Project name]
+# Famerang
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A 100% local, offline-first PWA for turning a handful of kids' photos into a printable keepsake storybook -- no account, no server, no cloud.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/famerang run dev` -- run the Famerang web app (reads `PORT`/`BASE_PATH` from the artifact's workflow env)
+- `pnpm run typecheck` -- full typecheck across all packages
+- `pnpm run build` -- typecheck + build all packages
+- No database, no API server, no env vars are required for this artifact -- it is entirely client-side.
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Famerang artifact: React + Vite, Tailwind v4, wouter routing
+- Local storage: Dexie (IndexedDB) -- `artifacts/famerang/src/lib/db.ts`
+- Export: `jspdf` (draft PDF), `jszip` (page-image ZIP and full-dataset backup)
+- Offline/installable shell: `vite-plugin-pwa`
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/famerang/src/lib/db.ts` -- Dexie schema/instance (booklets, pages, stamp packages, stamps, page-stamp placements)
+- `artifacts/famerang/src/lib/types.ts` -- domain types and shared constants (canvas sizes, font defaults)
+- `artifacts/famerang/src/lib/hooks.ts` -- all data access: live-query React hooks + async CRUD functions. This is the only way pages should touch storage.
+- `artifacts/famerang/src/lib/imaging.ts` -- photo center-crop/downscale on upload, stamp content hashing
+- `artifacts/famerang/src/lib/compositing.ts` -- `renderPageToCanvas(...)`, the single source of truth for page layout; shared by the live editor preview, PDF export, and ZIP export
+- `artifacts/famerang/src/lib/pdf.ts` / `zipExport.ts` / `backup.ts` / `share.ts` -- export, ZIP export, full-dataset backup/restore, and OS share-sheet-or-download helper
+- `artifacts/famerang/src/pages/` -- routed screens (booklet list, booklet hub, page editor, reorder, export, stamp library, backup)
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- No backend, no OpenAPI/codegen, no Postgres -- deliberately out of scope. The workspace's `api-server`/`db`/`api-spec` packages are unused by this artifact.
+- All storage lives in one Dexie/IndexedDB database on-device; backup/restore is a ZIP containing a single JSON dump (photos/stamps travel inline as base64 data URLs, so no separate asset bundling is needed).
+- Photos are always center-cropped and downscaled to the booklet's square canvas size at upload time, so on-device storage stays bounded regardless of source photo resolution.
+- Export deliberately covers only a 1-up draft PDF and a ZIP of page images -- full high-res PDF and video/slideshow export were explicitly cut from scope.
+- Stamp deletion (both individual stamps and whole packages) is reference-count-protected: deleting something still placed on a page throws `StampInUseError(usageCount)` unless the caller passes `{ force: true }`.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Create booklets (square trim size, font, font size), add pages with a photo + caption (placed above or below), and decorate photos with tap-to-place, drag-to-reposition sticker "stamps" organized into packages.
+- Reorder pages via drag-and-drop, then export the booklet as a draft PDF or a ZIP of page images, sharing via the OS share sheet or a plain download.
+- Back up the entire local dataset to a ZIP file and restore it later (replace or merge), since there is no cloud sync.
+- Installable as a PWA with an offline app shell.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- None recorded yet beyond the initial scoping decisions (see task history): Dexie/IndexedDB over SQLite Wasm, fully installable PWA, backup/restore via plain upload/download (no native file pickers), no video/slideshow export.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Hooks in page components must be called unconditionally before any early `return null` guard -- an earlier bug in the page editor called `useStamps` after such a guard, causing a "Rendered more hooks than during the previous render" crash.
+- `vite.config.ts` requires `PORT` and `BASE_PATH` env vars (provided by the artifact workflow) -- don't hardcode a port.
 
 ## Pointers
 

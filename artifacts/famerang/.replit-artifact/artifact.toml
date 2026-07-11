@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Famerang"
+version = "1.0.0"
+id = "artifacts/famerang"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25468
+
+[services.development]
+run = "pnpm --filter @workspace/famerang run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/famerang", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/famerang/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25468"
+BASE_PATH = "/"
