@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { renderPageToCanvas } from '@/lib/compositing';
+import { useHeaderClose } from '@/components/layout/AppLayout';
 import type { Booklet, PageWithStamps } from '@/lib/types';
 
 const PREVIEW_RENDER_SIZE = 1000;
@@ -52,6 +53,11 @@ export function PagePreview({ booklet, pages, initialIndex, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.id, booklet]);
 
+  // Preview is a "close"-style overlay -- swap the shared header's nav
+  // button for a Close action so it matches the Export view's header
+  // instead of showing its own separate top bar.
+  useHeaderClose(onClose);
+
   if (!page) return null;
 
   const goPrev = () => setIndex((i) => Math.max(0, i - 1));
@@ -71,26 +77,11 @@ export function PagePreview({ booklet, pages, initialIndex, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black flex flex-col animate-in fade-in duration-200"
+      className="fixed inset-x-0 top-16 bottom-0 z-40 bg-black flex flex-col animate-in fade-in duration-200"
       data-testid="page-preview"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="flex items-center justify-between px-4 h-14 shrink-0 text-white">
-        <span className="text-sm font-bold tabular-nums" data-testid="preview-counter">
-          {index + 1} / {pages.length}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close preview"
-          data-testid="preview-close"
-          className="p-2 -m-2 rounded-full hover:bg-white/10 active:scale-95 transition-all"
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
-
       <div className="flex-1 flex items-center justify-center relative px-3 overflow-hidden">
         {isRendering && !imageUrl ? (
           <Loader2 className="w-10 h-10 text-white/60 animate-spin" />
@@ -115,6 +106,9 @@ export function PagePreview({ booklet, pages, initialIndex, onClose }: Props) {
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
+        <span className="text-sm font-bold tabular-nums text-white" data-testid="preview-counter">
+          {index + 1} / {pages.length}
+        </span>
         <button
           type="button"
           onClick={goNext}

@@ -1,31 +1,90 @@
-import React from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Library } from 'lucide-react';
+import { BookOpen, Library, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface HeaderOverride {
+  label: string;
+  onClick: () => void;
+}
+
+interface HeaderOverrideApi {
+  setOverride: (override: HeaderOverride | null) => void;
+}
+
+const HeaderOverrideContext = createContext<HeaderOverrideApi | null>(null);
+
+/**
+ * Lets a page temporarily replace the shared header's right-side nav button
+ * (normally "Stamps" on Home / "Booklets" elsewhere) with a "Close" action,
+ * so overlay-style views (Export, full-screen Preview) get one consistent
+ * header instead of a bespoke local one. Pass `null` when there is nothing
+ * to close, e.g. before the overlay is open.
+ */
+export function useHeaderClose(onClose: (() => void) | null) {
+  const ctx = useContext(HeaderOverrideContext);
+  // Keep the latest callback in a ref so the effect below only needs to
+  // depend on whether an override is active (a stable boolean), not on the
+  // callback's identity -- an inline arrow function recreated every render
+  // would otherwise retrigger the effect (and setOverride) on every render.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const isOpen = onClose !== null;
+
+  useEffect(() => {
+    if (!ctx) return;
+    if (!isOpen) {
+      ctx.setOverride(null);
+      return;
+    }
+    ctx.setOverride({ label: 'Close', onClick: () => onCloseRef.current?.() });
+    return () => ctx.setOverride(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, isOpen]);
+}
+
+const navButtonClasses =
+  'flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm hover:bg-muted transition-colors text-muted-foreground hover:text-foreground';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const [override, setOverride] = useState<HeaderOverride | null>(null);
+  const ctxValue = useMemo(() => ({ setOverride }), []);
+
+  const rightContent = override ? (
+    <button type="button" onClick={override.onClick} className={navButtonClasses} data-testid="header-close">
+      <X className="w-5 h-5" />
+      {override.label}
+    </button>
+  ) : location === '/' ? (
+    <Link href="/stamps" className={cn(navButtonClasses, location.startsWith('/stamps') && 'bg-muted text-foreground')} data-testid="header-stamps">
+      <Library className="w-5 h-5" />
+      Stamps
+    </Link>
+  ) : (
+    <Link href="/" className={navButtonClasses} data-testid="header-booklets">
+      <BookOpen className="w-5 h-5" />
+      Booklets
+    </Link>
+  );
 
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans selection:bg-primary/20 pb-8">
-      <header className="sticky top-0 z-30 h-16 bg-card border-b-2 border-border px-4 flex items-center justify-between shadow-sm">
-        <Link href="/" className="font-serif text-2xl font-bold text-primary flex items-center gap-2">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12Z" fill="currentColor" fillOpacity="0.2"/>
-            <path d="M7 15L12 9L17 15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Famerang
-        </Link>
-        <nav className="flex items-center gap-1">
-          <Link href="/stamps" className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm hover:bg-muted transition-colors text-muted-foreground hover:text-foreground", location.startsWith('/stamps') && "bg-muted text-foreground")}>
-            <Library className="w-5 h-5" />
-            Stamps
+    <HeaderOverrideContext.Provider value={ctxValue}>
+      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans selection:bg-primary/20 pb-8">
+        <header className="sticky top-0 z-30 h-16 bg-card border-b-2 border-border px-4 flex items-center justify-between shadow-sm">
+          <Link href="/" className="font-serif text-2xl font-bold text-primary flex items-center gap-2">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12Z" fill="currentColor" fillOpacity="0.2"/>
+              <path d="M7 15L12 9L17 15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Famerang
           </Link>
-        </nav>
-      </header>
-      <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
-        {children}
-      </main>
-    </div>
+          <nav className="flex items-center gap-1">{rightContent}</nav>
+        </header>
+        <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
+          {children}
+        </main>
+      </div>
+    </HeaderOverrideContext.Provider>
   );
 }

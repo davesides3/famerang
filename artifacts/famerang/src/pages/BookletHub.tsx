@@ -18,6 +18,7 @@ import {
   Images,
 } from 'lucide-react';
 import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages } from '@/lib/hooks';
+import { useHeaderClose } from '@/components/layout/AppLayout';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
 import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
 import { generateDraftPdf, isLargeDraftPdf, estimateDraftPdfBytes } from '@/lib/pdf';
@@ -104,6 +105,19 @@ export function BookletHub() {
       setPages(serverPages);
     }
   }, [serverPages, draggedIdx]);
+
+  // While the Export sub-view is open, the shared header's nav button
+  // becomes a "Close" action that returns to this page-list screen instead
+  // of the usual Stamps/Booklets link -- gives Export one consistent header.
+  useHeaderClose(
+    isExportOpen
+      ? () => {
+          setIsExportOpen(false);
+          setConfirmLargePdf(false);
+          setConfirmLargePhotos(false);
+        }
+      : null,
+  );
 
   if (!booklet || !serverPages) return null;
 
@@ -273,21 +287,7 @@ export function BookletHub() {
   if (isExportOpen) {
     return (
       <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="flex items-center gap-3">
-          <PaperButton
-            variant="ghost"
-            size="icon"
-            className="shrink-0"
-            onClick={() => {
-              setIsExportOpen(false);
-              setConfirmLargePdf(false);
-              setConfirmLargePhotos(false);
-            }}
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </PaperButton>
-          <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Export Booklet</h1>
-        </div>
+        <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Export Booklet</h1>
 
         {(pdfError || photosError) && (
           <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
@@ -439,11 +439,6 @@ export function BookletHub() {
           list below scrolls independently. */}
       <div className="sticky top-16 z-20 -mx-4 px-4 pb-3 bg-background border-b-2 border-border" data-testid="hub-header">
         <div className="flex items-center gap-3 pt-4">
-          <Link href="/">
-            <PaperButton variant="ghost" size="icon" className="shrink-0">
-              <ChevronLeft className="w-6 h-6" />
-            </PaperButton>
-          </Link>
           <div className="min-w-0">
             <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{booklet.title}</h1>
             {isUnbackedUp && (
