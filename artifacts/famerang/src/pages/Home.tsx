@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BookPlus, Trash2, CalendarDays, BookOpen, Layers } from 'lucide-react';
+import { BookPlus, Trash2, CalendarDays, BookOpen, Layers, AlertTriangle } from 'lucide-react';
 import { useBooklets, createBooklet, deleteBooklet } from '@/lib/hooks';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { PaperButton } from '@/components/ui/PaperButton';
@@ -102,6 +102,12 @@ export function Home() {
                     {CANVAS_SIZES.find(s => s.value === booklet.canvasSize)?.label || 'Square'}
                   </div>
                 </div>
+
+                {booklet.updatedAt > (booklet.lastBackedUpAt ?? 0) && (
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 mt-2">
+                    <AlertTriangle className="w-3.5 h-3.5" /> Not backed up
+                  </div>
+                )}
               </PaperCard>
             </Link>
           ))}

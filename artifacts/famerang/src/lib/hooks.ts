@@ -57,6 +57,7 @@ export async function createBooklet(input: {
     fontSize: DEFAULT_FONT_SIZE,
     createdAt: now,
     updatedAt: now,
+    lastBackedUpAt: null,
   };
   await db.booklets.add(booklet);
   return booklet;
@@ -315,6 +316,15 @@ export function usePageStamps(pageId: string | undefined): PageStampWithStamp[] 
 
 /** Places a new stamp instance on the grid at (xRatio, yRatio), stacking on
  * top of any stamps already placed. */
+/** Looks up which booklet a page belongs to and bumps its `updatedAt`, so
+ * booklet-level mutations that only touch `pageStamps` (placing, moving, or
+ * removing a stamp) still register as "unbacked-up changes" -- the same
+ * contract `touchBooklet` provides for direct page edits. */
+async function touchBookletForPage(pageId: string): Promise<void> {
+  const page = await db.pages.get(pageId);
+  if (page) await touchBooklet(page.bookletId);
+}
+
 export async function placeStamp(
   pageId: string,
   stampId: string,
@@ -327,6 +337,7 @@ export async function placeStamp(
   await db.pageStamps.add(placement);
   const stamp = await db.stamps.get(stampId);
   if (!stamp) throw new Error('Stamp not found');
+  await touchBookletForPage(pageId);
   return { ...placement, stamp };
 }
 
@@ -335,9 +346,13 @@ export async function movePageStamp(
   xRatio: number,
   yRatio: number,
 ): Promise<void> {
+  const placement = await db.pageStamps.get(pageStampId);
   await db.pageStamps.update(pageStampId, { xRatio, yRatio });
+  if (placement) await touchBookletForPage(placement.pageId);
 }
 
 export async function removePageStamp(pageStampId: string): Promise<void> {
+  const placement = await db.pageStamps.get(pageStampId);
   await db.pageStamps.delete(pageStampId);
+  if (placement) await touchBookletForPage(placement.pageId);
 }

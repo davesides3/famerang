@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'wouter';
-import { PackagePlus, Plus, Trash2, Library, Check, X } from 'lucide-react';
+import { PackagePlus, Plus, Trash2, Library, Check, X, Pencil, Download, Upload, AlertCircle } from 'lucide-react';
 import { 
   useStampPackages, createStampPackage, renameStampPackage, deleteStampPackage, 
   useStamps, addStamp, renameStamp, deleteStamp, StampInUseError 
 } from '@/lib/hooks';
+import { exportStampPackageZip, importStampPackageZip, type StampPackImportTarget } from '@/lib/stampPackZip';
+import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 
@@ -18,8 +20,15 @@ export function StampsLibrary() {
 
   const [newPkgName, setNewPkgName] = useState('');
   const [isCreatingPkg, setIsCreatingPkg] = useState(false);
-  
+
+  const [isRenamingPkg, setIsRenamingPkg] = useState(false);
+  const [renamePkgName, setRenamePkgName] = useState('');
+
+  const [isImportingPkg, setIsImportingPkg] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const packFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreatePackage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +37,49 @@ export function StampsLibrary() {
     setSelectedPkgId(pkg.id);
     setNewPkgName('');
     setIsCreatingPkg(false);
+  };
+
+  const openRenamePackage = () => {
+    const current = packages?.find((p) => p.id === activePkgId);
+    if (!current) return;
+    setRenamePkgName(current.name);
+    setIsRenamingPkg(true);
+  };
+
+  const handleRenamePackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePkgId || !renamePkgName.trim()) return;
+    await renameStampPackage(activePkgId, renamePkgName.trim());
+    setIsRenamingPkg(false);
+  };
+
+  const handleExportPackage = async () => {
+    if (!activePkgId) return;
+    const pkg = packages?.find((p) => p.id === activePkgId);
+    const blob = await exportStampPackageZip(activePkgId);
+    const safeName = (pkg?.name || 'stamp-pack').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    await shareOrDownloadFile(blob, `famerang-${safeName}.zip`, 'application/zip');
+  };
+
+  const [importMode, setImportMode] = useState<'new' | 'merge'>('new');
+
+  const handleImportPackageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setImportError(null);
+      const target: StampPackImportTarget =
+        importMode === 'merge' && activePkgId
+          ? { mode: 'merge', packageId: activePkgId }
+          : { mode: 'new' };
+      const pkg = await importStampPackageZip(file, target);
+      setSelectedPkgId(pkg.id);
+      setIsImportingPkg(false);
+    } catch (err: any) {
+      setImportError(err.message || 'Import failed. The file might not be a valid stamp pack.');
+    } finally {
+      if (packFileInputRef.current) packFileInputRef.current.value = '';
+    }
   };
 
   const handleDeletePackage = async (id: string, name: string) => {
@@ -69,12 +121,58 @@ export function StampsLibrary() {
     }
   };
 
+  const activePkg = packages?.find(p => p.id === activePkgId);
+
   return (
     <div className="flex flex-col gap-6 w-full animate-in fade-in">
-      <div className="flex items-center gap-3">
-        <Library className="w-8 h-8 text-primary" />
-        <h1 className="text-3xl font-serif font-bold text-foreground">Stamp Library</h1>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Library className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-serif font-bold text-foreground">Stamp Library</h1>
+        </div>
+        <PaperButton variant="outline" size="sm" onClick={() => { setImportError(null); setIsImportingPkg(true); }}>
+          <Upload className="w-4 h-4 mr-2" /> Import Pack
+        </PaperButton>
       </div>
+
+      {importError && (
+        <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <p className="text-sm font-bold">{importError}</p>
+        </div>
+      )}
+
+      {isImportingPkg && (
+        <PaperCard className="animate-in slide-in-from-top-4 flex flex-col gap-4">
+          <h3 className="font-bold font-serif">Import Stamp Pack</h3>
+          <p className="text-sm text-muted-foreground">Choose a pack .zip file exported from Famerang.</p>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="radio" name="importMode" value="new" checked={importMode === 'new'} onChange={() => setImportMode('new')} className="w-4 h-4 text-primary" />
+              <span className="font-bold">Import as a new pack</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="importMode"
+                value="merge"
+                checked={importMode === 'merge'}
+                onChange={() => setImportMode('merge')}
+                disabled={!activePkgId}
+                className="w-4 h-4 text-primary"
+              />
+              <span className={`font-bold ${!activePkgId ? 'text-muted-foreground/50' : ''}`}>
+                Merge into "{activePkg?.name ?? 'the selected pack'}"
+              </span>
+            </label>
+          </div>
+          <input type="file" accept=".zip,application/zip" ref={packFileInputRef} className="hidden" onChange={handleImportPackageFile} />
+          <div className="flex justify-end gap-2">
+            <PaperButton type="button" variant="ghost" onClick={() => setIsImportingPkg(false)}>Cancel</PaperButton>
+            <PaperButton type="button" onClick={() => packFileInputRef.current?.click()}>Choose File</PaperButton>
+          </div>
+        </PaperCard>
+      )}
 
       <div className="flex flex-col gap-4">
         {/* Package selector row */}
@@ -111,13 +209,36 @@ export function StampsLibrary() {
           </PaperCard>
         )}
 
+        {isRenamingPkg && (
+          <PaperCard className="animate-in slide-in-from-top-4">
+            <form onSubmit={handleRenamePackage} className="flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Pack name..." 
+                className="flex-1 px-3 py-2 border-2 border-border rounded-xl focus:border-primary outline-none"
+                value={renamePkgName}
+                onChange={e => setRenamePkgName(e.target.value)}
+                autoFocus
+              />
+              <PaperButton type="submit" size="icon" variant="primary"><Check className="w-5 h-5" /></PaperButton>
+              <PaperButton type="button" size="icon" variant="ghost" onClick={() => setIsRenamingPkg(false)}><X className="w-5 h-5" /></PaperButton>
+            </form>
+          </PaperCard>
+        )}
+
         {/* Active Package Content */}
         {activePkgId ? (
           <PaperCard className="flex flex-col gap-6 min-h-[50vh]">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold font-serif text-xl">{packages?.find(p => p.id === activePkgId)?.name}</h2>
-              <div className="flex gap-2">
-                <PaperButton variant="ghost" size="sm" onClick={() => handleDeletePackage(activePkgId, packages?.find(p => p.id === activePkgId)?.name || '')} className="text-destructive">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h2 className="font-bold font-serif text-xl">{activePkg?.name}</h2>
+              <div className="flex gap-2 flex-wrap">
+                <PaperButton variant="ghost" size="sm" onClick={openRenamePackage}>
+                  <Pencil className="w-4 h-4 mr-2" /> Rename
+                </PaperButton>
+                <PaperButton variant="ghost" size="sm" onClick={handleExportPackage}>
+                  <Download className="w-4 h-4 mr-2" /> Export
+                </PaperButton>
+                <PaperButton variant="ghost" size="sm" onClick={() => handleDeletePackage(activePkgId, activePkg?.name || '')} className="text-destructive">
                   Delete Pack
                 </PaperButton>
                 <PaperButton size="sm" onClick={() => fileInputRef.current?.click()}>

@@ -31,6 +31,10 @@ export interface Booklet {
   fontSize: number;
   createdAt: number;
   updatedAt: number;
+  // Timestamp of the last successful backup (global or booklet-level) that
+  // included this booklet. `null` means it has never been backed up. Used
+  // to show the "not backed up" indicator whenever updatedAt > this.
+  lastBackedUpAt: number | null;
 }
 
 export interface Page {

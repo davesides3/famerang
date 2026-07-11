@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
-import { ChevronLeft, Plus, Settings, ListOrdered, Share, ImagePlus, FileImage } from 'lucide-react';
+import { ChevronLeft, Plus, Settings, ListOrdered, Share, ImagePlus, FileImage, AlertTriangle, Download, Upload, AlertCircle } from 'lucide-react';
 import { useBooklet, usePagesWithStamps, createPage, updateBooklet } from '@/lib/hooks';
+import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
+import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { CANVAS_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
@@ -17,7 +19,14 @@ export function BookletHub() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
 
+  const [isExportingBooklet, setIsExportingBooklet] = useState(false);
+  const [isRestoringBooklet, setIsRestoringBooklet] = useState(false);
+  const [backupError, setBackupError] = useState<string | null>(null);
+  const restoreFileInputRef = useRef<HTMLInputElement>(null);
+
   if (!booklet || !pages) return null;
+
+  const isUnbackedUp = booklet.updatedAt > (booklet.lastBackedUpAt ?? 0);
 
   const handleAddPage = async () => {
     if (!id) return;
@@ -36,30 +45,60 @@ export function BookletHub() {
 
   const openSettings = () => {
     setEditTitle(booklet.title);
+    setBackupError(null);
     setIsSettingsOpen(true);
   };
 
-  return (
-    <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/">
-            <PaperButton variant="ghost" size="icon" className="shrink-0">
-              <ChevronLeft className="w-6 h-6" />
-            </PaperButton>
-          </Link>
-          <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{booklet.title}</h1>
-        </div>
-        <PaperButton variant="ghost" size="icon" onClick={openSettings}>
-          <Settings className="w-5 h-5" />
-        </PaperButton>
-      </div>
+  const handleExportBooklet = async () => {
+    if (!id) return;
+    try {
+      setBackupError(null);
+      setIsExportingBooklet(true);
+      const blob = await exportBookletZip(id);
+      const safeTitle = booklet.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const date = new Date().toISOString().split('T')[0];
+      await shareOrDownloadFile(blob, `famerang-booklet-${safeTitle}-${date}.zip`, 'application/zip');
+    } catch (err: any) {
+      setBackupError(err.message || 'Export failed. See console for details.');
+    } finally {
+      setIsExportingBooklet(false);
+    }
+  };
 
-      {isSettingsOpen && (
+  const handleRestoreBookletFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setBackupError(null);
+      setIsRestoringBooklet(true);
+      await restoreBookletZip(file);
+    } catch (err: any) {
+      setBackupError(err.message || 'Restore failed. The file might be corrupted.');
+    } finally {
+      setIsRestoringBooklet(false);
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = '';
+    }
+  };
+
+  if (isSettingsOpen) {
+    return (
+      <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center gap-3">
+          <PaperButton variant="ghost" size="icon" className="shrink-0" onClick={() => setIsSettingsOpen(false)}>
+            <ChevronLeft className="w-6 h-6" />
+          </PaperButton>
+          <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Booklet Settings</h1>
+        </div>
+
+        {backupError && (
+          <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm font-bold">{backupError}</p>
+          </div>
+        )}
+
         <PaperCard className="bg-muted/50">
           <form onSubmit={saveSettings} className="flex flex-col gap-4">
-            <h3 className="font-bold text-lg font-serif">Booklet Settings</h3>
-            
             <div className="space-y-2">
               <label className="text-sm font-bold text-muted-foreground block">Title</label>
               <input
@@ -99,7 +138,50 @@ export function BookletHub() {
             </div>
           </form>
         </PaperCard>
-      )}
+
+        <PaperCard className="flex flex-col gap-4 border-primary/20">
+          <div>
+            <h3 className="font-bold text-lg font-serif">Backup This Booklet</h3>
+            <p className="text-sm text-muted-foreground">
+              {isUnbackedUp ? "You have changes that haven't been backed up yet." : 'Everything in this booklet is backed up.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <PaperButton type="button" variant="secondary" onClick={handleExportBooklet} disabled={isExportingBooklet}>
+              <Download className="w-4 h-4 mr-2" /> {isExportingBooklet ? 'Exporting...' : 'Export This Booklet'}
+            </PaperButton>
+            <PaperButton type="button" onClick={() => restoreFileInputRef.current?.click()} disabled={isRestoringBooklet}>
+              <Upload className="w-4 h-4 mr-2" /> {isRestoringBooklet ? 'Restoring...' : 'Restore Into This Booklet'}
+            </PaperButton>
+          </div>
+          <input type="file" accept=".zip,application/zip" ref={restoreFileInputRef} className="hidden" onChange={handleRestoreBookletFile} />
+        </PaperCard>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/">
+            <PaperButton variant="ghost" size="icon" className="shrink-0">
+              <ChevronLeft className="w-6 h-6" />
+            </PaperButton>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{booklet.title}</h1>
+            {isUnbackedUp && (
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
+                <AlertTriangle className="w-3.5 h-3.5" /> Not backed up
+              </div>
+            )}
+          </div>
+        </div>
+        <PaperButton variant="ghost" size="icon" onClick={openSettings}>
+          <Settings className="w-5 h-5" />
+        </PaperButton>
+      </div>
 
       {pages.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">

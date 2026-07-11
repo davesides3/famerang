@@ -20,6 +20,24 @@ class FamerangDB extends Dexie {
       stamps: 'id, packageId, contentHash',
       pageStamps: 'id, pageId, stampId',
     });
+    // v2: track when each booklet was last backed up so the UI can show a
+    // "not backed up" indicator (added alongside booklet-level backups).
+    this.version(2)
+      .stores({
+        booklets: 'id, updatedAt',
+        pages: 'id, bookletId, sortOrder',
+        stampPackages: 'id, createdAt',
+        stamps: 'id, packageId, contentHash',
+        pageStamps: 'id, pageId, stampId',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('booklets')
+          .toCollection()
+          .modify((booklet) => {
+            booklet.lastBackedUpAt = null;
+          }),
+      );
   }
 }
 
