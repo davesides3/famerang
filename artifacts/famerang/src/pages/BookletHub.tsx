@@ -1,6 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
-import { ChevronLeft, Plus, Settings, ImagePlus, FileImage, AlertTriangle, Download, Upload, AlertCircle, FileDown, Loader2, GripVertical } from 'lucide-react';
+import {
+  ChevronLeft,
+  Plus,
+  Settings,
+  ImagePlus,
+  FileImage,
+  AlertTriangle,
+  Download,
+  Upload,
+  AlertCircle,
+  FileDown,
+  Loader2,
+  GripVertical,
+  Eye,
+} from 'lucide-react';
 import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages } from '@/lib/hooks';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
 import { shareOrDownloadFile } from '@/lib/share';
@@ -9,6 +23,36 @@ import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { CANVAS_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
 import type { PageWithStamps } from '@/lib/types';
+import { PagePreview } from '@/pages/PagePreview';
+import { cn } from '@/lib/utils';
+
+/** Compact icon-over-label button used in the hub's frozen toolbar row. */
+function ToolbarAction({
+  icon,
+  label,
+  onClick,
+  disabled,
+  testId,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      data-testid={testId}
+      className="flex flex-col items-center gap-1 py-2 rounded-xl hover:bg-muted active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none text-muted-foreground"
+    >
+      {icon}
+      <span className="text-[11px] font-bold leading-none">{label}</span>
+    </button>
+  );
+}
 
 export function BookletHub() {
   const [, params] = useRoute('/booklet/:id');
@@ -29,10 +73,12 @@ export function BookletHub() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
-  // Local state so pages can be reordered by dragging directly in the grid.
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  // Local state so pages can be reordered by dragging directly in the list.
   const [pages, setPages] = useState<PageWithStamps[]>(serverPages || []);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
-  const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const draggedIdxRef = useRef<number | null>(null);
   const pagesRef = useRef<PageWithStamps[]>(pages);
 
@@ -67,7 +113,6 @@ export function BookletHub() {
 
   const openSettings = () => {
     setEditTitle(booklet.title);
-    setBackupError(null);
     setIsSettingsOpen(true);
   };
 
@@ -81,7 +126,7 @@ export function BookletHub() {
       const date = new Date().toISOString().split('T')[0];
       await shareOrDownloadFile(blob, `famerang-booklet-${safeTitle}-${date}.zip`, 'application/zip');
     } catch (err: any) {
-      setBackupError(err.message || 'Export failed. See console for details.');
+      setBackupError(err.message || 'Backup failed. See console for details.');
     } finally {
       setIsExportingBooklet(false);
     }
@@ -124,7 +169,7 @@ export function BookletHub() {
   // --- Inline drag-to-reorder using pointer events (works with mouse, touch,
   // and pen, and is more reliable than native HTML5 drag-and-drop) ---
   const findIndexAtPoint = (clientX: number, clientY: number): number | null => {
-    for (const [index, el] of cardRefs.current.entries()) {
+    for (const [index, el] of rowRefs.current.entries()) {
       const rect = el.getBoundingClientRect();
       if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
         return index;
@@ -155,7 +200,7 @@ export function BookletHub() {
     draggedIdxRef.current = null;
     setDraggedIdx(null);
     if (!id) return;
-    await reorderPages(id, pagesRef.current.map(p => p.id));
+    await reorderPages(id, pagesRef.current.map((p) => p.id));
   };
 
   const handleGripPointerDown = (e: React.PointerEvent, index: number) => {
@@ -177,13 +222,6 @@ export function BookletHub() {
           <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Booklet Settings</h1>
         </div>
 
-        {backupError && (
-          <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm font-bold">{backupError}</p>
-          </div>
-        )}
-
         <PaperCard className="bg-muted/50">
           <form onSubmit={saveSettings} className="flex flex-col gap-4">
             <div className="space-y-2">
@@ -203,7 +241,11 @@ export function BookletHub() {
                 onChange={(e) => updateBooklet(booklet.id, { canvasSize: Number(e.target.value) as any })}
                 className="w-full bg-white px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               >
-                {CANVAS_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                {CANVAS_SIZES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -215,48 +257,38 @@ export function BookletHub() {
                 className="w-full bg-white px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
                 style={{ fontFamily: booklet.fontFamily }}
               >
-                {FONT_FAMILY_OPTIONS.map(f => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
+                {FONT_FAMILY_OPTIONS.map((f) => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>
+                    {f}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div className="flex justify-end gap-2 mt-2">
-              <PaperButton type="button" variant="ghost" onClick={() => setIsSettingsOpen(false)}>Close</PaperButton>
+              <PaperButton type="button" variant="ghost" onClick={() => setIsSettingsOpen(false)}>
+                Close
+              </PaperButton>
               <PaperButton type="submit">Save</PaperButton>
             </div>
           </form>
-        </PaperCard>
-
-        <PaperCard className="flex flex-col gap-4 border-primary/20">
-          <div>
-            <h3 className="font-bold text-lg font-serif">Backup This Booklet</h3>
-            <p className="text-sm text-muted-foreground">
-              {isUnbackedUp ? "You have changes that haven't been backed up yet." : 'Everything in this booklet is backed up.'}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <PaperButton type="button" variant="secondary" onClick={handleExportBooklet} disabled={isExportingBooklet}>
-              <Download className="w-4 h-4 mr-2" /> {isExportingBooklet ? 'Exporting...' : 'Export This Booklet'}
-            </PaperButton>
-            <PaperButton type="button" onClick={() => restoreFileInputRef.current?.click()} disabled={isRestoringBooklet}>
-              <Upload className="w-4 h-4 mr-2" /> {isRestoringBooklet ? 'Restoring...' : 'Restore Into This Booklet'}
-            </PaperButton>
-          </div>
-          <input type="file" accept=".zip,application/zip" ref={restoreFileInputRef} className="hidden" onChange={handleRestoreBookletFile} />
         </PaperCard>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Frozen header: stays pinned below the app header while the page
+          list below scrolls independently. */}
+      <div className="sticky top-16 z-20 -mx-4 px-4 pb-3 bg-background border-b-2 border-border" data-testid="hub-header">
+        <div className="flex items-center gap-3 pt-4">
           <Link href="/">
             <PaperButton variant="ghost" size="icon" className="shrink-0">
               <ChevronLeft className="w-6 h-6" />
             </PaperButton>
           </Link>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{booklet.title}</h1>
             {isUnbackedUp && (
               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
@@ -265,95 +297,160 @@ export function BookletHub() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+
+        <div className={cn('grid gap-1 mt-2', pages.length > 0 ? 'grid-cols-4' : 'grid-cols-3')}>
           {pages.length > 0 && (
-            <PaperButton size="sm" onClick={handleAddPage}>
-              <Plus className="w-4 h-4 mr-1" /> Add Page
-            </PaperButton>
+            <ToolbarAction
+              icon={<Plus className="w-5 h-5" />}
+              label="Add Page"
+              onClick={handleAddPage}
+              testId="toolbar-add-page"
+            />
           )}
-          <PaperButton variant="ghost" size="sm" onClick={openSettings}>
-            <Settings className="w-4 h-4 mr-1" /> Settings
-          </PaperButton>
+          <ToolbarAction
+            icon={isExportingBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+            label={isExportingBooklet ? 'Backing up...' : 'Backup'}
+            onClick={handleExportBooklet}
+            disabled={isExportingBooklet}
+            testId="toolbar-backup"
+          />
+          <ToolbarAction
+            icon={isRestoringBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
+            label={isRestoringBooklet ? 'Restoring...' : 'Restore'}
+            onClick={() => restoreFileInputRef.current?.click()}
+            disabled={isRestoringBooklet}
+            testId="toolbar-restore"
+          />
+          <ToolbarAction icon={<Settings className="w-5 h-5" />} label="Settings" onClick={openSettings} testId="toolbar-settings" />
         </div>
+        <input
+          type="file"
+          accept=".zip,application/zip"
+          ref={restoreFileInputRef}
+          className="hidden"
+          onChange={handleRestoreBookletFile}
+          data-testid="restore-file-input"
+        />
       </div>
 
-      {pdfError && (
-        <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-          <p className="text-sm font-bold">{pdfError}</p>
+      <div className="flex flex-col gap-4 pt-4">
+        {(pdfError || backupError) && (
+          <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm font-bold">{pdfError || backupError}</p>
+          </div>
+        )}
+
+        {pages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">
+            <ImagePlus className="w-16 h-16 text-muted-foreground/50 mb-4" />
+            <h3 className="text-xl font-bold text-foreground mb-2">It's empty in here</h3>
+            <p className="text-muted-foreground mb-6">Add your first photo to start building your story.</p>
+            <PaperButton onClick={handleAddPage} size="lg">
+              <Plus className="w-6 h-6 mr-2" />
+              Add First Page
+            </PaperButton>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground -mt-1">Drag a page by its grip handle to reorder it, or tap it to open.</p>
+            <div className="flex flex-col gap-3">
+              {pages.map((page, i) => (
+                <div
+                  key={page.id}
+                  data-testid={`page-row-${i}`}
+                  ref={(el) => {
+                    if (el) rowRefs.current.set(i, el);
+                    else rowRefs.current.delete(i);
+                  }}
+                  className={cn('transition-opacity', draggedIdx === i ? 'opacity-50 z-10' : '')}
+                >
+                  <PaperCard className="flex items-center gap-3 p-3">
+                    <div
+                      onClick={() => setLocation(`/booklet/${id}/page/${page.id}`)}
+                      role="button"
+                      tabIndex={0}
+                      className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                    >
+                      <div className="relative shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-white border-2 border-border">
+                        {page.photoDataUrl ? (
+                          <img src={page.photoDataUrl} alt="Thumbnail" draggable={false} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <FileImage className="w-8 h-8 text-muted-foreground/30" />
+                          </div>
+                        )}
+                        <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-background border-2 border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+                          {i + 1}
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-foreground line-clamp-1">
+                          {page.textContent?.trim() || <span className="text-muted-foreground/60 italic">Untitled page</span>}
+                        </p>
+                        {page.stamps.length > 0 && (
+                          <div className="flex items-center gap-1 mt-1 -space-x-2">
+                            {page.stamps.slice(0, 4).map((s) => (
+                              <img
+                                key={s.id}
+                                src={s.stamp.pngDataUrl}
+                                draggable={false}
+                                className="w-5 h-5 rounded-full border border-white bg-white/50"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div
+                      data-testid={`page-grip-${i}`}
+                      aria-label="Drag to reorder"
+                      className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground/70 cursor-move touch-none select-none"
+                      onPointerDown={(e) => handleGripPointerDown(e, i)}
+                    >
+                      <GripVertical className="w-5 h-5" />
+                    </div>
+                  </PaperCard>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {pages.length > 0 && <div className="h-24" /> /* spacer so content clears the fixed bottom bar */}
+      </div>
+
+      {pages.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t-2 border-border flex justify-center z-20">
+          <div className="flex gap-3 w-full max-w-sm">
+            <PaperButton
+              type="button"
+              variant="outline"
+              className="flex-1 shadow-lg"
+              onClick={() => setPreviewIndex(0)}
+              data-testid="open-preview"
+            >
+              <Eye className="w-5 h-5 mr-2" />
+              Preview
+            </PaperButton>
+            <PaperButton
+              type="button"
+              variant="primary"
+              className="flex-1 shadow-lg"
+              onClick={handleDraftPdf}
+              disabled={isGeneratingPdf}
+              data-testid="draft-pdf"
+            >
+              {isGeneratingPdf ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <FileDown className="w-5 h-5 mr-2" />}
+              {isGeneratingPdf ? 'Generating...' : 'Draft PDF'}
+            </PaperButton>
+          </div>
         </div>
       )}
 
-      {pages.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">
-          <ImagePlus className="w-16 h-16 text-muted-foreground/50 mb-4" />
-          <h3 className="text-xl font-bold text-foreground mb-2">It's empty in here</h3>
-          <p className="text-muted-foreground mb-6">Add your first photo to start building your story.</p>
-          <PaperButton onClick={handleAddPage} size="lg">
-            <Plus className="w-6 h-6 mr-2" />
-            Add First Page
-          </PaperButton>
-        </div>
-      ) : (
-        <>
-          <p className="text-sm text-muted-foreground -mt-2">Drag a page by its grip handle to reorder it, or tap it to open.</p>
-          <div className="grid grid-cols-2 gap-4">
-            {pages.map((page, i) => (
-              <div
-                key={page.id}
-                data-testid={`page-card-${i}`}
-                ref={(el) => {
-                  if (el) cardRefs.current.set(i, el);
-                  else cardRefs.current.delete(i);
-                }}
-                onClick={() => setLocation(`/booklet/${id}/page/${page.id}`)}
-                role="button"
-                tabIndex={0}
-                className={`cursor-pointer touch-none select-none ${draggedIdx === i ? 'opacity-50 z-10' : ''}`}
-              >
-                <PaperCard className="aspect-square flex items-center justify-center p-2 hover:border-primary/50 transition-colors relative group overflow-hidden bg-white">
-                  <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-background border-2 border-border flex items-center justify-center text-xs font-bold z-10 text-muted-foreground">
-                    {i + 1}
-                  </div>
-                  <div
-                    data-testid={`page-grip-${i}`}
-                    className="absolute top-1 right-1 w-9 h-9 flex items-center justify-center rounded-lg text-muted-foreground/70 bg-background/80 cursor-move z-10 touch-none"
-                    aria-label="Drag to reorder"
-                    onPointerDown={(e) => handleGripPointerDown(e, i)}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <GripVertical className="w-5 h-5" />
-                  </div>
-                  {page.photoDataUrl ? (
-                    <img src={page.photoDataUrl} alt="Thumbnail" draggable={false} className="w-full h-full object-cover rounded-md opacity-80 group-hover:opacity-100 transition-opacity" />
-                  ) : (
-                    <FileImage className="w-12 h-12 text-muted-foreground/30" />
-                  )}
-                  {page.stamps.length > 0 && (
-                    <div className="absolute bottom-2 right-2 flex -space-x-2">
-                      {page.stamps.slice(0, 3).map(s => (
-                        <img key={s.id} src={s.stamp.pngDataUrl} draggable={false} className="w-6 h-6 rounded-full border border-white bg-white/50" />
-                      ))}
-                    </div>
-                  )}
-                </PaperCard>
-              </div>
-            ))}
-          </div>
-
-          <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t-2 border-border flex justify-center z-20">
-            <PaperButton
-              variant="primary"
-              className="px-8 shadow-lg w-full max-w-sm"
-              onClick={handleDraftPdf}
-              disabled={isGeneratingPdf}
-            >
-              {isGeneratingPdf ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <FileDown className="w-5 h-5 mr-2" />}
-              {isGeneratingPdf ? 'Generating Draft PDF...' : 'Draft PDF'}
-            </PaperButton>
-          </div>
-          <div className="h-16" /> {/* spacer */}
-        </>
+      {previewIndex !== null && (
+        <PagePreview booklet={booklet} pages={pages} initialIndex={previewIndex} onClose={() => setPreviewIndex(null)} />
       )}
     </div>
   );
