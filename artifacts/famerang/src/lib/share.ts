@@ -39,6 +39,45 @@ export async function shareOrDownloadFile(
   return 'downloaded';
 }
 
+/**
+ * Shares multiple files at once through the OS share sheet when the Web
+ * Share API supports multi-file sharing -- this is what lets photo apps
+ * like Google Photos (Android) or "Save Image(s)" (iOS) appear as targets,
+ * since they only register for image files, never for archives. Falls back
+ * to downloading a zip (built lazily via `buildFallbackZip`, only when
+ * actually needed) when multi-file sharing isn't supported.
+ */
+export async function shareOrDownloadFiles(
+  files: File[],
+  buildFallbackZip: () => Promise<Blob>,
+  zipFilename: string,
+  shareTitle?: string,
+  shareText?: string,
+): Promise<'shared' | 'downloaded'> {
+  if (
+    typeof navigator !== 'undefined' &&
+    'canShare' in navigator &&
+    navigator.canShare({ files })
+  ) {
+    try {
+      await navigator.share({ files, title: shareTitle, text: shareText });
+      return 'shared';
+    } catch (err) {
+      // AbortError means the user dismissed the share sheet -- not a real
+      // failure, so don't fall through to a surprise download.
+      if (err instanceof Error && err.name === 'AbortError') {
+        return 'shared';
+      }
+      // Any other failure (e.g. unsupported in this context) falls through
+      // to the zip download fallback below.
+    }
+  }
+
+  const zipBlob = await buildFallbackZip();
+  downloadBlob(zipBlob, zipFilename);
+  return 'downloaded';
+}
+
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');

@@ -14,11 +14,14 @@ import {
   Loader2,
   GripVertical,
   Eye,
+  Share2,
+  Images,
 } from 'lucide-react';
 import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages } from '@/lib/hooks';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
-import { shareOrDownloadFile } from '@/lib/share';
+import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
 import { generateDraftPdf } from '@/lib/pdf';
+import { renderPagesAsJpegBlobs, zipPhotoBlobs } from '@/lib/photoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { CANVAS_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
@@ -63,6 +66,7 @@ export function BookletHub() {
   const serverPages = usePagesWithStamps(id);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
 
   const [isExportingBooklet, setIsExportingBooklet] = useState(false);
@@ -72,6 +76,9 @@ export function BookletHub() {
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const [isSendingPhotos, setIsSendingPhotos] = useState(false);
+  const [photosError, setPhotosError] = useState<string | null>(null);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -166,6 +173,33 @@ export function BookletHub() {
     }
   };
 
+  const handleSendPhotos = async () => {
+    if (!booklet) return;
+    try {
+      setPhotosError(null);
+      setIsSendingPhotos(true);
+      // Yield to the browser so the loading state paints before the
+      // (synchronous-per-page) compositing work starts.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
+      const blobs = await renderPagesAsJpegBlobs(booklet, pages);
+      const files = blobs.map(
+        (blob, i) =>
+          new File([blob], `${safeTitle}-page-${String(i + 1).padStart(2, '0')}.jpg`, { type: 'image/jpeg' }),
+      );
+      await shareOrDownloadFiles(
+        files,
+        () => zipPhotoBlobs(blobs, safeTitle),
+        `${safeTitle}-photos.zip`,
+        booklet.title,
+      );
+    } catch (err: any) {
+      setPhotosError(err.message || 'Could not prepare the photos. Please try again.');
+    } finally {
+      setIsSendingPhotos(false);
+    }
+  };
+
   // --- Inline drag-to-reorder using pointer events (works with mouse, touch,
   // and pen, and is more reliable than native HTML5 drag-and-drop) ---
   const findIndexAtPoint = (clientX: number, clientY: number): number | null => {
@@ -211,6 +245,68 @@ export function BookletHub() {
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
   };
+
+  if (isExportOpen) {
+    return (
+      <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center gap-3">
+          <PaperButton variant="ghost" size="icon" className="shrink-0" onClick={() => setIsExportOpen(false)}>
+            <ChevronLeft className="w-6 h-6" />
+          </PaperButton>
+          <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Export Booklet</h1>
+        </div>
+
+        {(pdfError || photosError) && (
+          <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm font-bold">{pdfError || photosError}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <PaperCard className="flex items-center gap-4 p-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <FileDown className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground">Send Draft PDF</p>
+              <p className="text-sm text-muted-foreground">A quick-preview PDF with every page, ready to print or share.</p>
+            </div>
+            <PaperButton
+              type="button"
+              onClick={handleDraftPdf}
+              disabled={isGeneratingPdf}
+              className="shrink-0"
+              data-testid="send-draft-pdf"
+            >
+              {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send'}
+            </PaperButton>
+          </PaperCard>
+
+          <PaperCard className="flex items-center gap-4 p-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Images className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground">Send Photos</p>
+              <p className="text-sm text-muted-foreground">
+                Full-resolution images of every page, ready to save straight into Google Photos or Apple Photos.
+              </p>
+            </div>
+            <PaperButton
+              type="button"
+              onClick={handleSendPhotos}
+              disabled={isSendingPhotos}
+              className="shrink-0"
+              data-testid="send-photos"
+            >
+              {isSendingPhotos ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send'}
+            </PaperButton>
+          </PaperCard>
+        </div>
+      </div>
+    );
+  }
 
   if (isSettingsOpen) {
     return (
@@ -334,10 +430,10 @@ export function BookletHub() {
       </div>
 
       <div className="flex flex-col gap-4 pt-4">
-        {(pdfError || backupError) && (
+        {backupError && (
           <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm font-bold">{pdfError || backupError}</p>
+            <p className="text-sm font-bold">{backupError}</p>
           </div>
         )}
 
@@ -438,12 +534,11 @@ export function BookletHub() {
               type="button"
               variant="primary"
               className="flex-1 shadow-lg"
-              onClick={handleDraftPdf}
-              disabled={isGeneratingPdf}
-              data-testid="draft-pdf"
+              onClick={() => setIsExportOpen(true)}
+              data-testid="open-export"
             >
-              {isGeneratingPdf ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <FileDown className="w-5 h-5 mr-2" />}
-              {isGeneratingPdf ? 'Generating...' : 'Draft PDF'}
+              <Share2 className="w-5 h-5 mr-2" />
+              Export
             </PaperButton>
           </div>
         </div>
