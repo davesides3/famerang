@@ -20,14 +20,14 @@ import {
 import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages } from '@/lib/hooks';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
 import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
-import { generateDraftPdf } from '@/lib/pdf';
-import { renderPagesAsJpegBlobs, zipPhotoBlobs } from '@/lib/photoExport';
+import { generateDraftPdf, isLargeDraftPdf, estimateDraftPdfBytes } from '@/lib/pdf';
+import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhotoExportBytes } from '@/lib/photoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { CANVAS_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
 import type { PageWithStamps } from '@/lib/types';
 import { PagePreview } from '@/pages/PagePreview';
-import { cn } from '@/lib/utils';
+import { cn, formatEstimatedSize } from '@/lib/utils';
 
 /** Compact icon-over-label button used in the hub's frozen toolbar row. */
 function ToolbarAction({
@@ -79,6 +79,12 @@ export function BookletHub() {
 
   const [isSendingPhotos, setIsSendingPhotos] = useState(false);
   const [photosError, setPhotosError] = useState<string | null>(null);
+
+  // "Send" for a very large export shows an inline warning with the
+  // estimated size instead of immediately starting; a second tap on
+  // "Send Anyway" confirms and proceeds.
+  const [confirmLargePdf, setConfirmLargePdf] = useState(false);
+  const [confirmLargePhotos, setConfirmLargePhotos] = useState(false);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -154,9 +160,18 @@ export function BookletHub() {
     }
   };
 
+  const handleDraftPdfClick = () => {
+    if (isLargeDraftPdf(pages.length) && !confirmLargePdf) {
+      setConfirmLargePdf(true);
+      return;
+    }
+    handleDraftPdf();
+  };
+
   const handleDraftPdf = async () => {
     if (!booklet) return;
     try {
+      setConfirmLargePdf(false);
       setPdfError(null);
       setIsGeneratingPdf(true);
       // Yield to the browser so the loading state actually paints before the
@@ -173,10 +188,19 @@ export function BookletHub() {
     }
   };
 
+  const handleSendPhotosClick = () => {
+    if (isLargePhotoExport(booklet.canvasSize, pages.length) && !confirmLargePhotos) {
+      setConfirmLargePhotos(true);
+      return;
+    }
+    handleSendPhotos();
+  };
+
   const handleSendPhotos = async () => {
     if (!booklet) return;
     try {
       setPhotosError(null);
+      setConfirmLargePhotos(false);
       setIsSendingPhotos(true);
       // Yield to the browser so the loading state paints before the
       // (synchronous-per-page) compositing work starts.
@@ -250,7 +274,16 @@ export function BookletHub() {
     return (
       <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex items-center gap-3">
-          <PaperButton variant="ghost" size="icon" className="shrink-0" onClick={() => setIsExportOpen(false)}>
+          <PaperButton
+            variant="ghost"
+            size="icon"
+            className="shrink-0"
+            onClick={() => {
+              setIsExportOpen(false);
+              setConfirmLargePdf(false);
+              setConfirmLargePhotos(false);
+            }}
+          >
             <ChevronLeft className="w-6 h-6" />
           </PaperButton>
           <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Export Booklet</h1>
@@ -274,14 +307,27 @@ export function BookletHub() {
             </div>
             <PaperButton
               type="button"
-              onClick={handleDraftPdf}
+              onClick={handleDraftPdfClick}
               disabled={isGeneratingPdf}
               className="shrink-0"
               data-testid="send-draft-pdf"
             >
-              {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send'}
+              {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : confirmLargePdf ? 'Send Anyway' : 'Send'}
             </PaperButton>
           </PaperCard>
+          {confirmLargePdf && (
+            <div
+              className="bg-amber-50 text-amber-800 border-2 border-amber-200 p-3 rounded-xl flex items-start gap-2.5 -mt-1"
+              data-testid="large-pdf-warning"
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs font-bold">
+                This booklet has {pages.length} pages, so the draft PDF will be large (about{' '}
+                {formatEstimatedSize(estimateDraftPdfBytes(pages.length))}) -- it may be slow to send or bounce off email
+                attachment limits. Tap Send again to continue anyway.
+              </p>
+            </div>
+          )}
 
           <PaperCard className="flex items-center gap-4 p-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -295,14 +341,28 @@ export function BookletHub() {
             </div>
             <PaperButton
               type="button"
-              onClick={handleSendPhotos}
+              onClick={handleSendPhotosClick}
               disabled={isSendingPhotos}
               className="shrink-0"
               data-testid="send-photos"
             >
-              {isSendingPhotos ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Send'}
+              {isSendingPhotos ? <Loader2 className="w-5 h-5 animate-spin" /> : confirmLargePhotos ? 'Send Anyway' : 'Send'}
             </PaperButton>
           </PaperCard>
+          {confirmLargePhotos && (
+            <div
+              className="bg-amber-50 text-amber-800 border-2 border-amber-200 p-3 rounded-xl flex items-start gap-2.5 -mt-1"
+              data-testid="large-photos-warning"
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs font-bold">
+                This export will be large (about{' '}
+                {formatEstimatedSize(estimatePhotoExportBytes(booklet.canvasSize, pages.length))} for {pages.length} pages) --
+                it may be slow to send over cellular or bounce off email attachment limits. Tap Send again to continue
+                anyway.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );
