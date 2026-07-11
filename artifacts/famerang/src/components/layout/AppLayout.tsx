@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Library, ArchiveRestore } from 'lucide-react';
+import { Library } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,11 +17,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           Famerang
         </Link>
         <nav className="flex items-center gap-1">
-          <Link href="/stamps" className={cn("p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground", location.startsWith('/stamps') && "bg-muted text-foreground")}>
-            <Library className="w-6 h-6" />
-          </Link>
-          <Link href="/backup" className={cn("p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground", location.startsWith('/backup') && "bg-muted text-foreground")}>
-            <ArchiveRestore className="w-6 h-6" />
+          <Link href="/stamps" className={cn("flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm hover:bg-muted transition-colors text-muted-foreground hover:text-foreground", location.startsWith('/stamps') && "bg-muted text-foreground")}>
+            <Library className="w-5 h-5" />
+            Stamps
           </Link>
         </nav>
       </header>
