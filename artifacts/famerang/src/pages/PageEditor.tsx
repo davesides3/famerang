@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useRoute, Link, useLocation } from 'wouter';
-import { ChevronLeft, ImagePlus, Type, Trash2, ArrowUpFromLine, ArrowDownToLine, Sticker } from 'lucide-react';
-import { useBooklet, usePageWithStamps, setPagePhoto, updatePageText, deletePage, useStampPackages, useStamps, placeStamp, removePageStamp } from '@/lib/hooks';
+import { useRoute, useLocation } from 'wouter';
+import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker } from 'lucide-react';
+import { useBooklet, usePageWithStamps, setPagePhoto, updatePageText, useStampPackages, useStamps, placeStamp, removePageStamp } from '@/lib/hooks';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
+import { useHeaderClose } from '@/components/layout/AppLayout';
 
 export function PageEditor() {
   const [, params] = useRoute('/booklet/:bookletId/page/:pageId');
@@ -39,14 +40,6 @@ export function PageEditor() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDelete = async () => {
-    if (!pageId || !bookletId) return;
-    if (confirm('Delete this page?')) {
-      await deletePage(pageId);
-      setLocation(`/booklet/${bookletId}`);
-    }
-  };
-
   const handleStampTap = async (stampId: string) => {
     if (!pageId) return;
     // Place at center by default
@@ -66,25 +59,15 @@ export function PageEditor() {
 
   const stampsInCurrentPackage = useStamps(selectedPackageId || stampPackages?.[0]?.id);
 
+  // This is a full-screen overlay-style view, so it shares the app's
+  // top header (Famerang + Close) instead of its own bespoke bar --
+  // consistent with the Export and Preview views.
+  useHeaderClose(() => setLocation(`/booklet/${bookletId}`));
+
   if (!booklet || !page) return null;
 
   return (
-    <div className="flex flex-col min-h-screen w-full bg-background absolute inset-0 z-50 animate-in slide-in-from-bottom-8">
-      {/* Editor Header */}
-      <header className="flex items-center justify-between p-4 bg-card border-b-2 border-border z-10 shrink-0">
-        <div className="flex items-center gap-2">
-          <Link href={`/booklet/${bookletId}`}>
-            <PaperButton variant="ghost" size="icon">
-              <ChevronLeft className="w-6 h-6" />
-            </PaperButton>
-          </Link>
-          <span className="font-bold text-muted-foreground font-serif">Edit Page</span>
-        </div>
-        <PaperButton variant="ghost" size="icon" onClick={handleDelete} className="text-destructive hover:bg-destructive/10">
-          <Trash2 className="w-5 h-5" />
-        </PaperButton>
-      </header>
-
+    <div className="flex flex-col fixed inset-x-0 top-16 bottom-0 z-40 w-full bg-background animate-in fade-in duration-200">
       {/* Main workspace */}
       <div className="flex-1 flex flex-col overflow-hidden bg-muted/30">
         

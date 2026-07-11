@@ -85,7 +85,7 @@ export function Home() {
                   </h3>
                   <button
                     onClick={(e) => handleDelete(e, booklet.id)}
-                    className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors opacity-0 group-hover:opacity-100"
+                    className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
                     aria-label="Delete booklet"
                   >
                     <Trash2 className="w-5 h-5" />

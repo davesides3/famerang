@@ -16,8 +16,9 @@ import {
   Eye,
   Share2,
   Images,
+  Trash2,
 } from 'lucide-react';
-import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages } from '@/lib/hooks';
+import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
 import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
@@ -127,6 +128,12 @@ export function BookletHub() {
     if (!id) return;
     const page = await createPage(id);
     setLocation(`/booklet/${id}/page/${page.id}`);
+  };
+
+  const handleDeletePage = async (pageId: string) => {
+    if (confirm('Delete this page?')) {
+      await deletePage(pageId);
+    }
   };
 
   const saveSettings = async (e: React.FormEvent) => {
@@ -518,6 +525,15 @@ export function BookletHub() {
                 >
                   <PaperCard className="flex items-center gap-3 p-3">
                     <div
+                      data-testid={`page-grip-${i}`}
+                      aria-label="Drag to reorder"
+                      className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground/70 cursor-move touch-none select-none"
+                      onPointerDown={(e) => handleGripPointerDown(e, i)}
+                    >
+                      <GripVertical className="w-5 h-5" />
+                    </div>
+
+                    <div
                       onClick={() => setLocation(`/booklet/${id}/page/${page.id}`)}
                       role="button"
                       tabIndex={0}
@@ -554,14 +570,15 @@ export function BookletHub() {
                       </div>
                     </div>
 
-                    <div
-                      data-testid={`page-grip-${i}`}
-                      aria-label="Drag to reorder"
-                      className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground/70 cursor-move touch-none select-none"
-                      onPointerDown={(e) => handleGripPointerDown(e, i)}
+                    <button
+                      type="button"
+                      data-testid={`page-delete-${i}`}
+                      aria-label="Delete page"
+                      onClick={() => handleDeletePage(page.id)}
+                      className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
-                      <GripVertical className="w-5 h-5" />
-                    </div>
+                      <Trash2 className="w-5 h-5" />
+                    </button>
                   </PaperCard>
                 </div>
               ))}
