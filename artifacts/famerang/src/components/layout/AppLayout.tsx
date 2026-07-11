@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BookOpen, Library, X } from 'lucide-react';
+import { BookOpen, Stamp, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HeaderOverride {
@@ -58,7 +58,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     </button>
   ) : location === '/' ? (
     <Link href="/stamps" className={cn(navButtonClasses, location.startsWith('/stamps') && 'bg-muted text-foreground')} data-testid="header-stamps">
-      <Library className="w-5 h-5" />
+      <Stamp className="w-5 h-5" />
       Stamps
     </Link>
   ) : (

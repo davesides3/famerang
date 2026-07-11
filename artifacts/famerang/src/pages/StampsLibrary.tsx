@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'wouter';
-import { PackagePlus, Plus, Trash2, Library, Check, X, Pencil, Download, Upload, AlertCircle } from 'lucide-react';
+import { PackagePlus, Plus, Trash2, Stamp, Check, X, Pencil, Download, Upload, AlertCircle } from 'lucide-react';
 import { 
   useStampPackages, createStampPackage, renameStampPackage, deleteStampPackage, 
   useStamps, addStamp, renameStamp, deleteStamp, StampInUseError 
@@ -127,7 +127,7 @@ export function StampsLibrary() {
     <div className="flex flex-col gap-6 w-full animate-in fade-in">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Library className="w-8 h-8 text-primary" />
+          <Stamp className="w-8 h-8 text-primary" />
           <h1 className="text-3xl font-serif font-bold text-foreground">Stamp Library</h1>
         </div>
         <PaperButton variant="outline" size="sm" onClick={() => { setImportError(null); setIsImportingPkg(true); }}>
