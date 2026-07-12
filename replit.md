@@ -37,6 +37,39 @@ A 100% local, offline-first PWA for turning a handful of kids' photos into a pri
 - Export deliberately covers only a 1-up draft PDF and a ZIP of page images -- full high-res PDF and video/slideshow export were explicitly cut from scope.
 - Stamp deletion (both individual stamps and whole packages) is reference-count-protected: deleting something still placed on a page throws `StampInUseError(usageCount)` unless the caller passes `{ force: true }`.
 
+## Features
+
+A tree of user-facing features, starting from Home (`/`, the booklet list):
+
+- **Home -- booklet list**
+  - Create a new booklet (title only; trim size/font default, editable later)
+  - Open a booklet -> Booklet Hub
+  - Delete a booklet directly from its card (always-visible trash icon, confirm dialog)
+- **Booklet Hub -- per-booklet page list** (`/booklet/:id`)
+  - Toolbar: Add Page, Backup, Restore, Settings
+  - Settings: rename title, change trim size (square canvas), change font family
+  - Page rows: drag-grip (left) to reorder, tap thumbnail/row to open Page Editor, delete page directly from the row (right-side trash icon, confirm dialog)
+  - "Not backed up" indicator when the booklet has changed since its last backup
+  - Backup: exports this booklet (pages, stamps, referenced stamp packages) as a downloadable ZIP; shows a "Backup complete" toast
+  - Restore: uploads a booklet ZIP and overwrites the currently-open booklet's pages (confirm-dialog warning first, since it's destructive and not a merge); page list refreshes in place; shows a "Booklet restored" toast
+  - Preview -- opens the full-screen, swipe/arrow page navigator (read-only, matches export rendering exactly)
+  - Export -- opens a menu with two send options:
+    - **Send Draft PDF**: one PDF with every page, for quick preview/printing (large-booklet warning + "Send Anyway" confirm above a size threshold)
+    - **Send Photos**: full-resolution JPEG of every page, shared via the OS multi-file share sheet so apps that accept multiple images (e.g. Google Photos, Apple Photos) appear as share targets directly; falls back to a downloadable ZIP of images when multi-file share isn't supported (large-booklet warning + confirm above a size threshold)
+- **Page Editor -- single page** (`/booklet/:id/page/:pageId`)
+  - Add or replace the page's photo (auto center-cropped/downscaled to the booklet's canvas size)
+  - Caption text with auto-save on blur, and a toggle for caption placement (above or below the photo)
+  - Stamp drawer: browse stamp packages, tap a stamp to place it at the photo's center
+  - Drag a placed stamp to reposition it; tap a placed stamp in the "Placed" strip to remove it
+  - Close -> back to the Booklet Hub
+- **Stamp Library -- global, not tied to a booklet** (`/stamps`)
+  - Create, rename, or delete a stamp package (deleting a package still used on pages is reference-count-protected, with a force-delete confirm)
+  - Export a stamp package as a downloadable ZIP; import a package ZIP as a new package or merged into the currently-selected one
+  - Upload one or more stamp images (PNG/WebP) into the active package; delete an individual stamp (also reference-count-protected)
+- **Shared across every screen**
+  - One physical app header: Famerang wordmark (links Home) on the left; a Stamps/Booklets nav toggle on the right that becomes a "Close" action on overlay-style screens (Page Editor, Preview, Export)
+  - Installable as an offline-capable PWA
+
 ## Product
 
 - Create booklets (square trim size, font, font size), add pages with a photo + caption (placed above or below), and decorate photos with tap-to-place, drag-to-reposition sticker "stamps" organized into packages.
