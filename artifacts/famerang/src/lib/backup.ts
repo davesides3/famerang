@@ -157,6 +157,8 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
   return blob;
 }
 
+const newId = () => crypto.randomUUID();
+
 /**
  * Restores a single booklet from a file produced by `exportBookletZip`,
  * overwriting the booklet identified by `targetBookletId`.
@@ -166,6 +168,13 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
  * record, pages, and stamp placements are written in under the target id so
  * the caller stays on the same booklet/route it was viewing. Referenced
  * stamps/packages are upserted alongside so the restored pages still render.
+ *
+ * Restored pages and page-stamps are given brand-new ids rather than reusing
+ * the ids captured in the backup. The original booklet the backup came from
+ * may still exist on this device (e.g. restoring into a *different* booklet
+ * than the one that was exported) -- reusing the old page/page-stamp ids
+ * would make `bulkPut` overwrite those still-live rows in place, silently
+ * stealing pages away from the original booklet instead of copying them.
  */
 export async function restoreBookletZip(file: File, targetBookletId: string): Promise<Booklet> {
   const text = await readJsonPayloadFromFile(file, BOOKLET_BACKUP_ENTRY);
@@ -181,7 +190,21 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
   }
 
   const restoredBooklet: Booklet = { ...payload.booklet, id: targetBookletId };
-  const restoredPages = (payload.pages ?? []).map((p) => ({ ...p, bookletId: targetBookletId }));
+
+  // Fresh ids for every restored page, keyed by the page's original id so
+  // page-stamps (which reference pages by id) can be remapped to match.
+  const pageIdMap = new Map<string, string>();
+  const restoredPages = (payload.pages ?? []).map((p) => {
+    const freshId = newId();
+    pageIdMap.set(p.id, freshId);
+    return { ...p, id: freshId, bookletId: targetBookletId };
+  });
+
+  // Fresh ids for every restored page-stamp too, since its id could also
+  // collide with a still-live row from the original booklet.
+  const restoredPageStamps = (payload.pageStamps ?? [])
+    .filter((ps) => pageIdMap.has(ps.pageId))
+    .map((ps) => ({ ...ps, id: newId(), pageId: pageIdMap.get(ps.pageId)! }));
 
   await db.transaction(
     'rw',
@@ -202,7 +225,7 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
       if (restoredPages.length) await db.pages.bulkPut(restoredPages);
       if (payload.stampPackages?.length) await db.stampPackages.bulkPut(payload.stampPackages);
       if (payload.stamps?.length) await db.stamps.bulkPut(payload.stamps);
-      if (payload.pageStamps?.length) await db.pageStamps.bulkPut(payload.pageStamps);
+      if (restoredPageStamps.length) await db.pageStamps.bulkPut(restoredPageStamps);
     },
   );
 
