@@ -31,7 +31,7 @@ A 100% local, offline-first PWA for turning a handful of kids' photos into a pri
 ## Architecture decisions
 
 - No backend, no OpenAPI/codegen, no Postgres -- deliberately out of scope. The workspace's `api-server`/`db`/`api-spec` packages are unused by this artifact.
-- All storage lives in one Dexie/IndexedDB database on-device; backup/restore is a ZIP containing a single JSON dump (photos/stamps travel inline as base64 data URLs, so no separate asset bundling is needed).
+- All storage lives in one Dexie/IndexedDB database on-device. Backup/restore ZIPs contain a single JSON dump each (photos/stamps travel inline as base64 data URLs, so no separate asset bundling is needed) -- there are two independent shapes: a full-dataset dump (every booklet/page/stamp) and a single-booklet dump (one booklet's own record, pages, and referenced stamps/packages).
 - Per-booklet restore (`restoreBookletZip`) always overwrites -- there is no merge option, and the target booklet is whichever one the user was viewing when they tapped Restore (not necessarily the booklet that was originally backed up). The user is warned via a confirm dialog before it proceeds, since it's destructive. Restored pages/page-stamps are given brand-new ids rather than reusing the ids captured in the backup, because reusing them would make `bulkPut` overwrite still-live rows if the original source booklet still exists on-device (see Gotchas).
 - Photos are always center-cropped and downscaled to the booklet's square canvas size at upload time, so on-device storage stays bounded regardless of source photo resolution.
 - Export deliberately covers only a 1-up draft PDF and a ZIP of page images -- full high-res PDF and video/slideshow export were explicitly cut from scope.
