@@ -9,6 +9,10 @@ website
 - full screen PWA without browser bar
 - allow download of stamp packages
 
+Ideas
+- Foterang or Fotorang
+- Photorang
+
 Change Log
 
 2026-07-11 Saturday
