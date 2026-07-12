@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
+import { useToast } from '@/hooks/use-toast';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
 import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
 import { generateDraftPdf, isLargeDraftPdf, estimateDraftPdfBytes } from '@/lib/pdf';
@@ -66,6 +67,7 @@ export function BookletHub() {
 
   const booklet = useBooklet(id);
   const serverPages = usePagesWithStamps(id);
+  const { toast } = useToast();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -159,6 +161,7 @@ export function BookletHub() {
       const safeTitle = booklet.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
       const date = new Date().toISOString().split('T')[0];
       await shareOrDownloadFile(blob, `famerang-booklet-${safeTitle}-${date}.zip`, 'application/zip');
+      toast({ title: 'Backup complete', description: `"${booklet.title}" was saved to a zip file.` });
     } catch (err: any) {
       setBackupError(err.message || 'Backup failed. See console for details.');
     } finally {
@@ -169,10 +172,21 @@ export function BookletHub() {
   const handleRestoreBookletFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!id) return;
+
+    const confirmed = confirm(
+      `Restoring will overwrite "${booklet.title}" with the contents of this backup. This can't be undone. Continue?`,
+    );
+    if (!confirmed) {
+      if (restoreFileInputRef.current) restoreFileInputRef.current.value = '';
+      return;
+    }
+
     try {
       setBackupError(null);
       setIsRestoringBooklet(true);
-      await restoreBookletZip(file);
+      const restored = await restoreBookletZip(file, id);
+      toast({ title: 'Booklet restored', description: `"${restored.title}" has been restored from the backup.` });
     } catch (err: any) {
       setBackupError(err.message || 'Restore failed. The file might be corrupted.');
     } finally {

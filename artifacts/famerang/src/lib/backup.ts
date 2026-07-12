@@ -158,12 +158,16 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
 }
 
 /**
- * Restores a single booklet from a file produced by `exportBookletZip`.
- * Always upserts (there's no "replace everything" concept for a single
- * booklet) -- the booklet, its pages, and referenced stamps/packages are
- * merged into whatever already exists on this device, matched by id.
+ * Restores a single booklet from a file produced by `exportBookletZip`,
+ * overwriting the booklet identified by `targetBookletId`.
+ *
+ * This always replaces (never merges): the target booklet's existing pages
+ * and page-stamp placements are deleted first, then the backup's booklet
+ * record, pages, and stamp placements are written in under the target id so
+ * the caller stays on the same booklet/route it was viewing. Referenced
+ * stamps/packages are upserted alongside so the restored pages still render.
  */
-export async function restoreBookletZip(file: File): Promise<Booklet> {
+export async function restoreBookletZip(file: File, targetBookletId: string): Promise<Booklet> {
   const text = await readJsonPayloadFromFile(file, BOOKLET_BACKUP_ENTRY);
   let payload: BookletBackupPayload;
   try {
@@ -176,6 +180,9 @@ export async function restoreBookletZip(file: File): Promise<Booklet> {
     throw new Error('This file is not a valid Famerang booklet backup.');
   }
 
+  const restoredBooklet: Booklet = { ...payload.booklet, id: targetBookletId };
+  const restoredPages = (payload.pages ?? []).map((p) => ({ ...p, bookletId: targetBookletId }));
+
   await db.transaction(
     'rw',
     db.booklets,
@@ -184,17 +191,24 @@ export async function restoreBookletZip(file: File): Promise<Booklet> {
     db.stamps,
     db.pageStamps,
     async () => {
-      await db.booklets.put(payload.booklet);
-      if (payload.pages?.length) await db.pages.bulkPut(payload.pages);
+      const existingPages = await db.pages.where('bookletId').equals(targetBookletId).toArray();
+      const existingPageIds = existingPages.map((p) => p.id);
+      if (existingPageIds.length) {
+        await db.pageStamps.where('pageId').anyOf(existingPageIds).delete();
+        await db.pages.bulkDelete(existingPageIds);
+      }
+
+      await db.booklets.put(restoredBooklet);
+      if (restoredPages.length) await db.pages.bulkPut(restoredPages);
       if (payload.stampPackages?.length) await db.stampPackages.bulkPut(payload.stampPackages);
       if (payload.stamps?.length) await db.stamps.bulkPut(payload.stamps);
       if (payload.pageStamps?.length) await db.pageStamps.bulkPut(payload.pageStamps);
     },
   );
 
-  await markBookletsBackedUp([payload.booklet.id]);
+  await markBookletsBackedUp([targetBookletId]);
 
-  return payload.booklet;
+  return restoredBooklet;
 }
 
 async function markBookletsBackedUp(bookletIds: string[]): Promise<void> {
