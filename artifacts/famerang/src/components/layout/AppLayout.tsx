@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo, useRef, useState 
 import { Link, useLocation } from 'wouter';
 import { BookOpen, Stamp, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import famerangLogo from '@/assets/famerang-logo.png';
 
 interface HeaderOverride {
   label: string;
@@ -72,7 +73,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <HeaderOverrideContext.Provider value={ctxValue}>
       <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans selection:bg-primary/20 pb-8">
         <header className="sticky top-0 z-30 h-16 bg-card border-b-2 border-border px-4 flex items-center justify-between shadow-sm">
-          <Link href="/" className="font-serif text-2xl font-bold text-primary">
+          <Link href="/" className="flex items-center gap-2 font-serif text-2xl font-bold text-primary">
+            <img src={famerangLogo} alt="" className="h-9 w-9 object-contain shrink-0" />
             Famerang
           </Link>
           <nav className="flex items-center gap-1">{rightContent}</nav>
