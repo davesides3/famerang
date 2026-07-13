@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRoute, Link, useLocation } from 'wouter';
 import {
-  ChevronLeft,
   Plus,
   Settings,
   ImagePlus,
@@ -398,9 +397,6 @@ export function BookletHub() {
     return (
       <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="flex items-center gap-3">
-          <PaperButton variant="ghost" size="icon" className="shrink-0" onClick={() => setIsSettingsOpen(false)}>
-            <ChevronLeft className="w-6 h-6" />
-          </PaperButton>
           <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Booklet Settings</h1>
         </div>
 
