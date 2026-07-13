@@ -15,6 +15,9 @@ Ideas
 
 Change Log
 
+2026-07-13 Monday
+- UI cleanups
+
 2026-07-11 Saturday
 - initial MVP build
 - adjustments to UI

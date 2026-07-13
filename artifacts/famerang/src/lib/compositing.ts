@@ -53,6 +53,29 @@ function loadImageCached(
 
 const imageCache = new Map<string, HTMLImageElement>();
 
+// Web fonts (Baloo 2, Patrick Hand) are only fetched by the browser once
+// something actually renders with them -- a plain <canvas> draw does not
+// trigger that download, so `ctx.fillText` can silently substitute the
+// fallback font on first use even though `booklet.fontFamily` is correct.
+// Explicitly requesting the font here (idempotent, cached by the browser)
+// and awaiting `document.fonts.ready` ensures the glyphs are actually
+// available before we draw with them.
+const requestedFonts = new Set<string>();
+async function ensureFontLoaded(fontFamily: string, fontSizePx: number): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  const key = fontFamily;
+  if (!requestedFonts.has(key)) {
+    requestedFonts.add(key);
+    try {
+      await document.fonts.load(`${Math.max(fontSizePx, 16)}px "${fontFamily}"`);
+    } catch {
+      // Font may be a system font with no matching @font-face (e.g. Verdana,
+      // Georgia, Comic Sans MS) -- nothing to load, that's fine.
+    }
+  }
+  await document.fonts.ready;
+}
+
 /**
  * Composites one storybook page (photo + caption + stamps) onto a canvas.
  * This is the single source of truth for page layout -- the live page
@@ -83,6 +106,8 @@ export async function renderPageToCanvas(
   const fontSize = booklet.fontSize * scale;
   const margin = renderSize * 0.06;
   const lineHeight = fontSize * 1.25;
+
+  await ensureFontLoaded(booklet.fontFamily, fontSize);
 
   ctx.font = `${fontSize}px "${booklet.fontFamily}", sans-serif`;
   ctx.textBaseline = 'top';
