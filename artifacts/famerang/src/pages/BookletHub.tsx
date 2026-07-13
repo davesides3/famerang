@@ -109,9 +109,10 @@ export function BookletHub() {
     }
   }, [serverPages, draggedIdx]);
 
-  // While the Export sub-view is open, the shared header's nav button
-  // becomes a "Close" action that returns to this page-list screen instead
-  // of the usual Stamps/Booklets link -- gives Export one consistent header.
+  // While the Export or Settings sub-view is open, the shared header's nav
+  // button becomes a "Close" action that returns to this page-list screen
+  // instead of the usual Stamps/Booklets link -- gives every overlay-style
+  // view one consistent header.
   useHeaderClose(
     isExportOpen
       ? () => {
@@ -119,7 +120,9 @@ export function BookletHub() {
           setConfirmLargePdf(false);
           setConfirmLargePhotos(false);
         }
-      : null,
+      : isSettingsOpen
+        ? () => setIsSettingsOpen(false)
+        : null,
   );
 
   if (!booklet || !serverPages) return null;
@@ -138,13 +141,15 @@ export function BookletHub() {
     }
   };
 
-  const saveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Settings auto-saves as you go (like the Page Editor) instead of
+  // requiring an explicit Save button -- title commits on blur, the
+  // trim-size and font selects already commit on change below.
+  const handleTitleBlur = () => {
     if (!id) return;
-    if (editTitle.trim()) {
-      await updateBooklet(id, { title: editTitle.trim() });
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== booklet.title) {
+      updateBooklet(id, { title: trimmed });
     }
-    setIsSettingsOpen(false);
   };
 
   const openSettings = () => {
@@ -400,13 +405,14 @@ export function BookletHub() {
         </div>
 
         <PaperCard className="bg-muted/50">
-          <form onSubmit={saveSettings} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
             <div className="space-y-2">
               <label className="text-sm font-bold text-muted-foreground block">Title</label>
               <input
                 type="text"
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleTitleBlur}
                 className="w-full bg-white px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               />
             </div>
@@ -442,13 +448,7 @@ export function BookletHub() {
               </select>
             </div>
 
-            <div className="flex justify-end gap-2 mt-2">
-              <PaperButton type="button" variant="ghost" onClick={() => setIsSettingsOpen(false)}>
-                Close
-              </PaperButton>
-              <PaperButton type="submit">Save</PaperButton>
-            </div>
-          </form>
+          </div>
         </PaperCard>
       </div>
     );
