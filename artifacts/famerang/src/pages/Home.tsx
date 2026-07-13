@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BookPlus, Trash2, CalendarDays, BookOpen, Layers, AlertTriangle } from 'lucide-react';
+import { BookPlus, Trash2, CalendarDays, Layers, AlertTriangle } from 'lucide-react';
 import { useBooklets, createBooklet, deleteBooklet } from '@/lib/hooks';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { CANVAS_SIZES } from '@/lib/types';
 import { format } from 'date-fns';
+import famerangLogo from '@/assets/famerang-logo.png';
 
 export function Home() {
   const booklets = useBooklets();
@@ -66,7 +67,7 @@ export function Home() {
 
       {booklets?.length === 0 && !isCreating ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">
-          <BookOpen className="w-16 h-16 text-muted-foreground/50 mb-4" />
+          <img src={famerangLogo} alt="" className="w-16 h-16 object-contain mb-4 opacity-70" />
           <h3 className="text-xl font-bold text-foreground mb-2">No booklets yet</h3>
           <p className="text-muted-foreground mb-6">Create your first keepsake to start adding photos and stamps.</p>
           <PaperButton onClick={() => setIsCreating(true)}>
