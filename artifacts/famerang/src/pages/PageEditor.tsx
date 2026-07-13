@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker } from 'lucide-react';
-import { useBooklet, usePageWithStamps, setPagePhoto, updatePageText, useStampPackages, useStamps, placeStamp, removePageStamp } from '@/lib/hooks';
+import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, useStampPackages, useStamps, placeStamp, removePageStamp } from '@/lib/hooks';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -15,8 +15,13 @@ export function PageEditor() {
   const pageId = params?.pageId;
 
   const booklet = useBooklet(bookletId);
+  const pages = usePages(bookletId);
   const page = usePageWithStamps(pageId);
   const stampPackages = useStampPackages();
+
+  const currentIndex = pages?.findIndex((p) => p.id === pageId) ?? -1;
+  const prevPage = currentIndex > 0 ? pages?.[currentIndex - 1] : undefined;
+  const nextPage = pages && currentIndex >= 0 && currentIndex < pages.length - 1 ? pages[currentIndex + 1] : undefined;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -62,8 +67,33 @@ export function PageEditor() {
 
   // This is a full-screen overlay-style view, so it shares the app's
   // top header (Famerang + Close) instead of its own bespoke bar --
-  // consistent with the Export and Preview views.
-  useHeaderClose(() => setLocation(`/booklet/${bookletId}`));
+  // consistent with the Export and Preview views. Page-navigation arrows
+  // ride along next to Close since there's no other room on this screen.
+  useHeaderClose(
+    () => setLocation(`/booklet/${bookletId}`),
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => prevPage && setLocation(`/booklet/${bookletId}/page/${prevPage.id}`)}
+        disabled={!prevPage}
+        aria-label="Previous page"
+        data-testid="header-prev-page"
+        className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => nextPage && setLocation(`/booklet/${bookletId}/page/${nextPage.id}`)}
+        disabled={!nextPage}
+        aria-label="Next page"
+        data-testid="header-next-page"
+        className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+    </div>,
+  );
 
   if (!booklet || !page) return null;
 

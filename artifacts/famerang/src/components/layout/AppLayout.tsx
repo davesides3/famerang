@@ -7,6 +7,7 @@ import famerangLogo from '@/assets/famerang-logo.png';
 interface HeaderOverride {
   label: string;
   onClick: () => void;
+  extra?: React.ReactNode;
 }
 
 interface HeaderOverrideApi {
@@ -21,15 +22,22 @@ const HeaderOverrideContext = createContext<HeaderOverrideApi | null>(null);
  * so overlay-style views (Export, full-screen Preview) get one consistent
  * header instead of a bespoke local one. Pass `null` when there is nothing
  * to close, e.g. before the overlay is open.
+ *
+ * `extra` renders additional content immediately to the left of the Close
+ * button (e.g. page-navigation arrows in the Page Editor). It is read fresh
+ * on every render, unlike `onClose` -- so it always reflects current state
+ * (like disabled-arrow conditions) without needing its own effect deps.
  */
-export function useHeaderClose(onClose: (() => void) | null) {
+export function useHeaderClose(onClose: (() => void) | null, extra?: React.ReactNode) {
   const ctx = useContext(HeaderOverrideContext);
-  // Keep the latest callback in a ref so the effect below only needs to
+  // Keep the latest callback/extra in refs so the effect below only needs to
   // depend on whether an override is active (a stable boolean), not on the
   // callback's identity -- an inline arrow function recreated every render
   // would otherwise retrigger the effect (and setOverride) on every render.
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const extraRef = useRef(extra);
+  extraRef.current = extra;
   const isOpen = onClose !== null;
 
   useEffect(() => {
@@ -38,10 +46,19 @@ export function useHeaderClose(onClose: (() => void) | null) {
       ctx.setOverride(null);
       return;
     }
-    ctx.setOverride({ label: 'Close', onClick: () => onCloseRef.current?.() });
+    ctx.setOverride({ label: 'Close', onClick: () => onCloseRef.current?.(), extra: extraRef.current });
     return () => ctx.setOverride(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, isOpen]);
+
+  // Keep the rendered extra content in sync on every render (e.g. arrow
+  // disabled state changing as the user navigates pages), without
+  // retriggering the open/close effect above.
+  useEffect(() => {
+    if (!ctx || !isOpen) return;
+    ctx.setOverride({ label: 'Close', onClick: () => onCloseRef.current?.(), extra });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extra]);
 }
 
 const navButtonClasses =
@@ -53,10 +70,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const ctxValue = useMemo(() => ({ setOverride }), []);
 
   const rightContent = override ? (
-    <button type="button" onClick={override.onClick} className={navButtonClasses} data-testid="header-close">
-      <X className="w-5 h-5" />
-      {override.label}
-    </button>
+    <>
+      {override.extra}
+      <button type="button" onClick={override.onClick} className={navButtonClasses} data-testid="header-close">
+        <X className="w-5 h-5" />
+        {override.label}
+      </button>
+    </>
   ) : location === '/' ? (
     <Link href="/stamps" className={cn(navButtonClasses, location.startsWith('/stamps') && 'bg-muted text-foreground')} data-testid="header-stamps">
       <Stamp className="w-5 h-5" />
