@@ -5,6 +5,7 @@ import { useBooklet, usePageWithStamps, setPagePhoto, updatePageText, useStampPa
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
+import famerangLogo from '@/assets/famerang-logo.png';
 
 export function PageEditor() {
   const [, params] = useRoute('/booklet/:bookletId/page/:pageId');
@@ -87,7 +88,7 @@ export function PageEditor() {
                 className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <ImagePlus className="w-12 h-12 text-muted-foreground/50 mb-2" />
+                <img src={famerangLogo} alt="" className="w-[72px] h-[72px] object-contain opacity-50 mb-2" />
                 <span className="font-bold text-muted-foreground">Tap to add photo</span>
               </div>
             )}
