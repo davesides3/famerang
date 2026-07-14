@@ -12,6 +12,7 @@ interface HeaderOverride {
 
 interface HeaderOverrideApi {
   setOverride: (override: HeaderOverride | null) => void;
+  setNavHidden: (hidden: boolean) => void;
 }
 
 const HeaderOverrideContext = createContext<HeaderOverrideApi | null>(null);
@@ -61,15 +62,31 @@ export function useHeaderClose(onClose: (() => void) | null, extra?: React.React
   }, [extra]);
 }
 
+/**
+ * Lets a page temporarily hide the shared header's right-side nav button
+ * entirely (no Close action, just nothing) -- used by the "New Booklet"
+ * inline form on Home, which intentionally has no header affordance of its
+ * own (Cancel/Create live in the form itself).
+ */
+export function useHeaderNavHidden(hidden: boolean) {
+  const ctx = useContext(HeaderOverrideContext);
+  useEffect(() => {
+    if (!ctx) return;
+    ctx.setNavHidden(hidden);
+    return () => ctx.setNavHidden(false);
+  }, [ctx, hidden]);
+}
+
 const navButtonClasses =
   'flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm hover:bg-muted transition-colors text-muted-foreground hover:text-foreground';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [override, setOverride] = useState<HeaderOverride | null>(null);
-  const ctxValue = useMemo(() => ({ setOverride }), []);
+  const [navHidden, setNavHidden] = useState(false);
+  const ctxValue = useMemo(() => ({ setOverride, setNavHidden }), []);
 
-  const rightContent = override ? (
+  const rightContent = navHidden ? null : override ? (
     <>
       {override.extra}
       <button type="button" onClick={override.onClick} className={navButtonClasses} data-testid="header-close">

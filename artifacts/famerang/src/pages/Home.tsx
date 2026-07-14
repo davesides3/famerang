@@ -7,12 +7,15 @@ import { PaperButton } from '@/components/ui/PaperButton';
 import { CANVAS_SIZES } from '@/lib/types';
 import { format } from 'date-fns';
 import famerangLogo from '@/assets/famerang-logo.png';
+import { useHeaderNavHidden } from '@/components/layout/AppLayout';
 
 export function Home() {
   const booklets = useBooklets();
   const [, setLocation] = useLocation();
   const [isCreating, setIsCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+
+  useHeaderNavHidden(isCreating);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +47,7 @@ export function Home() {
       {isCreating && (
         <PaperCard className="bg-primary/5 border-primary/20 animate-in zoom-in-95">
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
-            <h2 className="text-xl font-bold font-serif text-primary">New Keepsake</h2>
+            <h2 className="text-xl font-bold font-serif text-primary">New Booklet</h2>
             <input
               type="text"
               placeholder="e.g. Summer at the Cabin"
@@ -65,7 +68,7 @@ export function Home() {
         </PaperCard>
       )}
 
-      {booklets?.length === 0 && !isCreating ? (
+      {isCreating ? null : booklets?.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">
           <img src={famerangLogo} alt="" className="w-24 h-24 object-contain mb-4 opacity-70" />
           <h3 className="text-xl font-bold text-foreground mb-2">No booklets yet</h3>
