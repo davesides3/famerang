@@ -17,6 +17,8 @@ Change Log
 
 2026-07-13 Monday
 - UI cleanups
+- limit to 5 stamps on a page
+- back/forward arrow on edit page
 
 2026-07-11 Saturday
 - initial MVP build
