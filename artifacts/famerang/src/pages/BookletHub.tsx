@@ -521,7 +521,6 @@ export function BookletHub() {
           </div>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground -mt-1">Drag a page by its grip handle to reorder it, or tap it to open.</p>
             <div className="flex flex-col gap-3">
               {pages.map((page, i) => (
                 <div
