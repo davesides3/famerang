@@ -1,4 +1,7 @@
 Fixes
+- restore has to insert stamps
+- redo stamp interface
+- initial stamp sets
 
 Revisions
 
@@ -19,6 +22,7 @@ Change Log
 - UI cleanups
 - limit to 5 stamps on a page
 - back/forward arrow on edit page
+- PWA install - portrait lock
 
 2026-07-11 Saturday
 - initial MVP build
