@@ -5,6 +5,25 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Famerang is a portrait-only experience. The installed/home-screen PWA is
+   already locked to portrait via the manifest's `orientation` field, but
+   that only applies once installed -- a regular browser tab (and iOS, which
+   ignores the manifest orientation lock even when installed) can still be
+   rotated. This overlay is a CSS-only fallback shown whenever a touch
+   device is held in landscape, telling the user to rotate back rather than
+   letting the layout render broken. `hover: none` + `pointer: coarse`
+   scopes it to touch devices so a desktop browser window that happens to be
+   wider than it is tall is never affected. */
+.landscape-guard {
+  display: none;
+}
+
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .landscape-guard {
+    display: flex;
+  }
+}
+
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));

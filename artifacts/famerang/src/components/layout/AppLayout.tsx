@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { BookOpen, Stamp, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import famerangLogo from '@/assets/famerang-logo.png';
+import { LandscapeGuard } from '@/components/layout/LandscapeGuard';
 
 interface HeaderOverride {
   label: string;
@@ -120,6 +121,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <LandscapeGuard />
     </HeaderOverrideContext.Provider>
   );
 }
