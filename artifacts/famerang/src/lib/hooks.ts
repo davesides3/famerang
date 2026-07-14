@@ -325,6 +325,9 @@ async function touchBookletForPage(pageId: string): Promise<void> {
   if (page) await touchBooklet(page.bookletId);
 }
 
+/** Max number of stamps a single page can hold. */
+export const MAX_STAMPS_PER_PAGE = 5;
+
 export async function placeStamp(
   pageId: string,
   stampId: string,
@@ -332,6 +335,9 @@ export async function placeStamp(
   yRatio: number,
 ): Promise<PageStampWithStamp> {
   const existingCount = await db.pageStamps.where('pageId').equals(pageId).count();
+  if (existingCount >= MAX_STAMPS_PER_PAGE) {
+    throw new Error(`A page can only hold up to ${MAX_STAMPS_PER_PAGE} stamps.`);
+  }
   const id = newId();
   const placement = { id, pageId, stampId, xRatio, yRatio, stackOrder: existingCount };
   await db.pageStamps.add(placement);

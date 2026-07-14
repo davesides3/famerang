@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, useStampPackages, useStamps, placeStamp, removePageStamp } from '@/lib/hooks';
+import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, useStampPackages, useStamps, placeStamp, removePageStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -46,8 +46,10 @@ export function PageEditor() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const stampLimitReached = (page?.stamps.length ?? 0) >= MAX_STAMPS_PER_PAGE;
+
   const handleStampTap = async (stampId: string) => {
-    if (!pageId) return;
+    if (!pageId || stampLimitReached) return;
     // Place at center by default
     await placeStamp(pageId, stampId, 0.5, 0.5);
     setIsStampDrawerOpen(false);
@@ -156,7 +158,9 @@ export function PageEditor() {
 
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">Placed:</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">
+                Placed ({page.stamps.length}/{MAX_STAMPS_PER_PAGE}):
+              </span>
               {page.stamps.map(s => (
                 <button 
                   key={s.id} 
@@ -184,6 +188,11 @@ export function PageEditor() {
             <div className="flex justify-center p-3">
               <div className="w-12 h-1.5 bg-border rounded-full" />
             </div>
+            {stampLimitReached && (
+              <div className="px-4 pb-2 text-sm font-bold text-destructive text-center">
+                Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Remove one to add another.
+              </div>
+            )}
             <div className="px-4 pb-2 border-b-2 border-border flex gap-2 overflow-x-auto hide-scrollbar">
               {stampPackages?.map(pkg => (
                 <PaperButton 
@@ -204,7 +213,8 @@ export function PageEditor() {
               {stampsInCurrentPackage?.map(stamp => (
                 <button 
                   key={stamp.id}
-                  className="aspect-square bg-white border-2 border-border rounded-xl p-2 hover:border-primary hover:-translate-y-1 transition-all flex items-center justify-center"
+                  disabled={stampLimitReached}
+                  className="aspect-square bg-white border-2 border-border rounded-xl p-2 hover:border-primary hover:-translate-y-1 transition-all flex items-center justify-center disabled:opacity-30 disabled:hover:translate-y-0 disabled:hover:border-border disabled:cursor-not-allowed"
                   onClick={() => handleStampTap(stamp.id)}
                 >
                   <img src={stamp.pngDataUrl} alt={stamp.name} className="max-w-full max-h-full object-contain drop-shadow-sm" />

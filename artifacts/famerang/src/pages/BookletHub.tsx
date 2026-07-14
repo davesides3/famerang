@@ -567,7 +567,7 @@ export function BookletHub() {
                         </p>
                         {page.stamps.length > 0 && (
                           <div className="flex items-center gap-1 mt-1 -space-x-2">
-                            {page.stamps.slice(0, 4).map((s) => (
+                            {page.stamps.slice(0, 5).map((s) => (
                               <img
                                 key={s.id}
                                 src={s.stamp.pngDataUrl}
