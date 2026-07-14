@@ -3,7 +3,6 @@ import { useRoute, Link, useLocation } from 'wouter';
 import {
   Plus,
   Settings,
-  ImagePlus,
   FileImage,
   AlertTriangle,
   Download,
@@ -30,6 +29,7 @@ import { CANVAS_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
 import type { PageWithStamps } from '@/lib/types';
 import { PagePreview } from '@/pages/PagePreview';
 import { cn, formatEstimatedSize } from '@/lib/utils';
+import famerangLogo from '@/assets/famerang-logo.png';
 
 /** Compact icon-over-label button used in the hub's frozen toolbar row. */
 function ToolbarAction({
@@ -511,7 +511,7 @@ export function BookletHub() {
 
         {pages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">
-            <ImagePlus className="w-16 h-16 text-muted-foreground/50 mb-4" />
+            <img src={famerangLogo} alt="" className="w-24 h-24 object-contain mb-4 opacity-70" />
             <h3 className="text-xl font-bold text-foreground mb-2">It's empty in here</h3>
             <p className="text-muted-foreground mb-6">Add your first photo to start building your story.</p>
             <PaperButton onClick={handleAddPage} size="lg">
