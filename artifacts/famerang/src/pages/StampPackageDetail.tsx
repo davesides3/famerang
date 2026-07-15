@@ -2,12 +2,13 @@ import React, { useRef, useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { PackagePlus, Trash2, Check, X, Pencil, Download, Upload, AlertCircle } from 'lucide-react';
 import {
-  useStampPackages, renameStampPackage, deleteStampPackage,
+  useStampPackages, renameStampPackage,
   useStamps, addStamp, deleteStamp, StampInUseError,
 } from '@/lib/hooks';
 import { exportStampPackageZip, importStampPackageZip } from '@/lib/stampPackZip';
 import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
+import { PaperCard } from '@/components/ui/PaperCard';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 
 /**
@@ -57,23 +58,6 @@ export function StampPackageDetail() {
     await shareOrDownloadFile(blob, `famerang-${safeName}.zip`, 'application/zip');
   };
 
-  const handleDeletePackage = async () => {
-    if (!packageId || !pkg) return;
-    try {
-      if (confirm(`Delete package "${pkg.name}"?`)) {
-        await deleteStampPackage(packageId);
-        returnToLibrary();
-      }
-    } catch (err) {
-      if (err instanceof StampInUseError) {
-        if (confirm(`Cannot delete: Stamps from this package are used on ${err.usageCount} page(s). Force delete anyway (will remove them from pages)?`)) {
-          await deleteStampPackage(packageId, { force: true });
-          returnToLibrary();
-        }
-      }
-    }
-  };
-
   const handleUploadStamps = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!packageId) return;
     const files = Array.from(e.target.files || []);
@@ -116,24 +100,34 @@ export function StampPackageDetail() {
 
   return (
     <div className="flex flex-col fixed inset-x-0 top-16 bottom-0 z-40 w-full bg-background animate-in fade-in duration-200">
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6 pb-safe">
+      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-safe">
         {!pkg ? null : (
           <>
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <h1 className="font-bold font-serif text-2xl text-foreground">{pkg.name}</h1>
-              <div className="flex gap-2 flex-wrap">
-                <PaperButton variant="ghost" size="sm" onClick={openRename}>
-                  <Pencil className="w-4 h-4 mr-2" /> Rename
-                </PaperButton>
-                <PaperButton variant="ghost" size="sm" onClick={handleExport}>
-                  <Download className="w-4 h-4 mr-2" /> Export
-                </PaperButton>
-                <PaperButton variant="ghost" size="sm" onClick={() => mergeFileInputRef.current?.click()} disabled={isMerging}>
-                  <Upload className="w-4 h-4 mr-2" /> {isMerging ? 'Importing...' : 'Import Into Pack'}
-                </PaperButton>
-                <PaperButton variant="ghost" size="sm" onClick={handleDeletePackage} className="text-destructive">
-                  Delete Pack
-                </PaperButton>
+            {/* Frozen header, styled to match the top of the Booklet Hub's
+                page list: title on its own line, then a grouped action row
+                beneath a bottom border. Uses top-0 (not top-16 like
+                BookletHub) because this view is already offset below the
+                app header by its own "fixed top-16" wrapper, so its
+                scrollable area's own top is effectively 0. */}
+            <div className="sticky top-0 z-20 -mx-4 px-4 pb-3 bg-background border-b-2 border-border" data-testid="package-detail-header">
+              <div className="flex items-center gap-3 pt-4">
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{pkg.name}</h1>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
+                <div className="flex gap-2 flex-wrap">
+                  <PaperButton variant="ghost" size="sm" onClick={openRename}>
+                    <Pencil className="w-4 h-4 mr-2" /> Rename
+                  </PaperButton>
+                  <PaperButton variant="ghost" size="sm" onClick={handleExport}>
+                    <Download className="w-4 h-4 mr-2" /> Export
+                  </PaperButton>
+                  <PaperButton variant="ghost" size="sm" onClick={() => mergeFileInputRef.current?.click()} disabled={isMerging}>
+                    <Upload className="w-4 h-4 mr-2" /> {isMerging ? 'Importing...' : 'Import Into Pack'}
+                  </PaperButton>
+                </div>
                 <PaperButton size="sm" onClick={() => fileInputRef.current?.click()}>
                   <PackagePlus className="w-4 h-4 mr-2" /> Add Stamps
                 </PaperButton>
@@ -172,22 +166,22 @@ export function StampPackageDetail() {
                 <p className="text-sm text-muted-foreground">Upload PNG images with transparent backgrounds.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="flex flex-col gap-3">
                 {stamps?.map(stamp => (
-                  <div key={stamp.id} className="relative group bg-white border-2 border-border rounded-xl aspect-square flex items-center justify-center p-2">
-                    <img src={stamp.pngDataUrl} alt={stamp.name} className="max-w-full max-h-full object-contain" />
+                  <PaperCard key={stamp.id} className="flex items-center gap-3 p-3">
+                    <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-white border-2 border-border flex items-center justify-center p-1">
+                      <img src={stamp.pngDataUrl} alt={stamp.name} className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <p className="min-w-0 flex-1 font-bold text-foreground truncate">{stamp.name}</p>
                     <button
                       type="button"
                       aria-label={`Delete stamp ${stamp.name}`}
                       onClick={() => handleDeleteStamp(stamp.id)}
-                      className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1.5 shadow-md active:scale-95 transition-transform"
+                      className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
-                    <div className="absolute bottom-1 w-full text-center text-[10px] font-bold text-muted-foreground bg-white/80 truncate px-1">
-                      {stamp.name}
-                    </div>
-                  </div>
+                  </PaperCard>
                 ))}
               </div>
             )}
