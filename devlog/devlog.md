@@ -1,5 +1,4 @@
 Fixes
-- redo stamp interface
 - initial stamp sets
 
 Revisions
@@ -10,6 +9,7 @@ website
 - install as PWA - add to home screen
 - full screen PWA without browser bar
 - allow download of stamp packages
+- Gumroad interface - $0 stamp packages
 
 Ideas
 - Foterang or Fotorang

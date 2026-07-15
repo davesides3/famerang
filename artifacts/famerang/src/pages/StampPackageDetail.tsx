@@ -3,7 +3,7 @@ import { useRoute, useLocation } from 'wouter';
 import { PackagePlus, Trash2, Check, X, Pencil, Download } from 'lucide-react';
 import {
   useStampPackages, renameStampPackage,
-  useStamps, addStamp, deleteStamp, StampInUseError,
+  useStamps, addStamp, deleteStamp, getStampUsage, StampInUseError,
 } from '@/lib/hooks';
 import { exportStampPackageZip } from '@/lib/stampPackZip';
 import { shareOrDownloadFile } from '@/lib/share';
@@ -93,10 +93,18 @@ export function StampPackageDetail() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDeleteStamp = async (id: string) => {
+  const handleDeleteStamp = async (id: string, name: string) => {
+    const usageCount = await getStampUsage(id);
+    const message = usageCount > 0
+      ? `Delete stamp "${name}"? It is used on ${usageCount} page${usageCount === 1 ? '' : 's'}.`
+      : `Delete stamp "${name}"?`;
+    if (!confirm(message)) return;
     try {
-      await deleteStamp(id);
+      await deleteStamp(id, { force: usageCount > 0 });
     } catch (err) {
+      // Usage may have changed between the check and the delete call
+      // (e.g. the stamp was just placed on a page); fall back to a
+      // second confirmation with the up-to-date count.
       if (err instanceof StampInUseError) {
         if (confirm(`This stamp is used on ${err.usageCount} page(s). Delete it anyway?`)) {
           await deleteStamp(id, { force: true });
@@ -168,7 +176,7 @@ export function StampPackageDetail() {
                     <button
                       type="button"
                       aria-label={`Delete stamp ${stamp.name}`}
-                      onClick={() => handleDeleteStamp(stamp.id)}
+                      onClick={() => handleDeleteStamp(stamp.id, stamp.name)}
                       className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />

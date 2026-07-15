@@ -308,6 +308,12 @@ export async function renameStamp(stampId: string, name: string): Promise<void> 
   await db.stamps.update(stampId, { name });
 }
 
+/** Returns how many page placements reference this stamp, so callers can
+ * show an accurate confirmation message before deleting. */
+export async function getStampUsage(stampId: string): Promise<number> {
+  return db.pageStamps.where('stampId').equals(stampId).count();
+}
+
 /** Throws StampInUseError unless `force` is passed, per the spec's
  * dependency-protection requirement. */
 export async function deleteStamp(
