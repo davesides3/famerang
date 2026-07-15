@@ -109,47 +109,48 @@ export function StampPackageDetail() {
 
   return (
     <div className="flex flex-col fixed inset-x-0 top-16 bottom-0 z-40 w-full bg-background animate-in fade-in duration-200">
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-safe">
-        {!pkg ? null : (
-          <>
-            {/* Frozen header, styled to match the top of the Booklet Hub's
-                page list: title on its own line, then a grouped action row
-                beneath a bottom border. Uses top-0 (not top-16 like
-                BookletHub) because this view is already offset below the
-                app header by its own "fixed top-16" wrapper, so its
-                scrollable area's own top is effectively 0. */}
-            <div className="sticky top-0 z-20 -mx-4 px-4 pb-3 bg-background border-b-2 border-border" data-testid="package-detail-header">
-              <div className="flex items-center gap-3 pt-4">
-                {isRenaming ? (
-                  <form onSubmit={handleRename} className="flex-1 min-w-0 flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Pack name..."
-                      className="flex-1 min-w-0 text-2xl font-serif font-bold text-foreground bg-transparent border-b-2 border-primary outline-none"
-                      value={renameName}
-                      onChange={e => setRenameName(e.target.value)}
-                      autoFocus
-                      onFocus={e => e.currentTarget.select()}
-                    />
-                    <PaperButton type="submit" size="icon" variant="primary"><Check className="w-5 h-5" /></PaperButton>
-                    <PaperButton type="button" size="icon" variant="ghost" onClick={() => setIsRenaming(false)}><X className="w-5 h-5" /></PaperButton>
-                  </form>
-                ) : (
-                  <div className="min-w-0">
-                    <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{pkg.name}</h1>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between gap-1 mt-1">
-                <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
-                <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
-                <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
-              </div>
+      {!pkg ? null : (
+        <>
+          {/* Header lives outside the scrollable area entirely (not
+              `sticky` inside it) so it can never be scrolled behind or
+              have scrolled rows bleed through it -- it's simply a fixed
+              top bar within this full-screen overlay, and only the
+              stamp list below scrolls. Styled to match the top of the
+              Booklet Hub's page list: title on its own line, then a
+              grouped action row beneath a bottom border. */}
+          <div className="shrink-0 px-4 pt-4 pb-3 bg-background border-b-2 border-border" data-testid="package-detail-header">
+            <div className="flex items-center gap-3">
+              {isRenaming ? (
+                <form onSubmit={handleRename} className="flex-1 min-w-0 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Pack name..."
+                    className="flex-1 min-w-0 text-2xl font-serif font-bold text-foreground bg-transparent border-b-2 border-primary outline-none"
+                    value={renameName}
+                    onChange={e => setRenameName(e.target.value)}
+                    autoFocus
+                    onFocus={e => e.currentTarget.select()}
+                  />
+                  <PaperButton type="submit" size="icon" variant="primary"><Check className="w-5 h-5" /></PaperButton>
+                  <PaperButton type="button" size="icon" variant="ghost" onClick={() => setIsRenaming(false)}><X className="w-5 h-5" /></PaperButton>
+                </form>
+              ) : (
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{pkg.name}</h1>
+                </div>
+              )}
             </div>
 
-            <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStamps} />
+            <div className="flex items-center justify-between gap-1 mt-1">
+              <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
+              <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
+              <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
+            </div>
+          </div>
 
+          <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStamps} />
+
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 pb-safe">
             {stamps?.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl">
                 <img src={famerangLogo} alt="" className="w-[72px] h-[72px] object-contain opacity-30 mb-3" />
@@ -176,9 +177,9 @@ export function StampPackageDetail() {
                 ))}
               </div>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
