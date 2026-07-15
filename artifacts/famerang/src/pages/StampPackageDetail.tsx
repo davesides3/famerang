@@ -10,6 +10,7 @@ import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { useHeaderClose } from '@/components/layout/AppLayout';
+import famerangLogo from '@/assets/famerang-logo.png';
 
 /** Compact icon-over-label action button, matching the "Add Page" toolbar
  * button style on the Booklet Hub, so Add Stamps can sit on the same line
@@ -119,38 +120,39 @@ export function StampPackageDetail() {
                 scrollable area's own top is effectively 0. */}
             <div className="sticky top-0 z-20 -mx-4 px-4 pb-3 bg-background border-b-2 border-border" data-testid="package-detail-header">
               <div className="flex items-center gap-3 pt-4">
-                <div className="min-w-0">
-                  <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{pkg.name}</h1>
-                </div>
+                {isRenaming ? (
+                  <form onSubmit={handleRename} className="flex-1 min-w-0 flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Pack name..."
+                      className="flex-1 min-w-0 text-2xl font-serif font-bold text-foreground bg-transparent border-b-2 border-primary outline-none"
+                      value={renameName}
+                      onChange={e => setRenameName(e.target.value)}
+                      autoFocus
+                      onFocus={e => e.currentTarget.select()}
+                    />
+                    <PaperButton type="submit" size="icon" variant="primary"><Check className="w-5 h-5" /></PaperButton>
+                    <PaperButton type="button" size="icon" variant="ghost" onClick={() => setIsRenaming(false)}><X className="w-5 h-5" /></PaperButton>
+                  </form>
+                ) : (
+                  <div className="min-w-0">
+                    <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{pkg.name}</h1>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between gap-1 mt-1">
+                <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
                 <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
                 <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
-                <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
               </div>
             </div>
-
-            {isRenaming && (
-              <form onSubmit={handleRename} className="flex gap-2 animate-in slide-in-from-top-4">
-                <input
-                  type="text"
-                  placeholder="Pack name..."
-                  className="flex-1 px-3 py-2 border-2 border-border rounded-xl focus:border-primary outline-none"
-                  value={renameName}
-                  onChange={e => setRenameName(e.target.value)}
-                  autoFocus
-                />
-                <PaperButton type="submit" size="icon" variant="primary"><Check className="w-5 h-5" /></PaperButton>
-                <PaperButton type="button" size="icon" variant="ghost" onClick={() => setIsRenaming(false)}><X className="w-5 h-5" /></PaperButton>
-              </form>
-            )}
 
             <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStamps} />
 
             {stamps?.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl">
-                <StickerIcon className="w-12 h-12 text-muted-foreground/30 mb-3" />
+                <img src={famerangLogo} alt="" className="w-[72px] h-[72px] object-contain opacity-30 mb-3" />
                 <p className="font-bold text-muted-foreground">This pack is empty.</p>
                 <p className="text-sm text-muted-foreground">Upload PNG images with transparent backgrounds.</p>
               </div>
@@ -178,17 +180,5 @@ export function StampPackageDetail() {
         )}
       </div>
     </div>
-  );
-}
-
-// Quick inline icon component to avoid adding more imports
-function StickerIcon(props: any) {
-  return (
-    <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15.5 3H5a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V8.5L15.5 3Z" />
-      <path d="M15 3v6h6" />
-      <path d="M10 16a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-      <path d="m14 12-1.5 1.5" />
-    </svg>
   );
 }
