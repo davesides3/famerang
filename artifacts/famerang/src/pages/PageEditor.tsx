@@ -44,7 +44,13 @@ export function PageEditor() {
 
   const stampLimitReached = (page?.stamps.length ?? 0) >= MAX_STAMPS_PER_PAGE;
 
-  const openStampPicker = () => setLocation(`/booklet/${bookletId}/page/${pageId}/stamps`);
+  // If the page is already at the limit, there's nothing to place -- show
+  // the limit message right here (where stamps can actually be removed)
+  // instead of sending the user to the full-screen picker with no way out.
+  const openStampPicker = () => {
+    if (stampLimitReached) return;
+    setLocation(`/booklet/${bookletId}/page/${pageId}/stamps`);
+  };
 
   const handleCanvasTap = (xRatio: number, yRatio: number) => {
     // We could use this to place a selected stamp, or just ignore for now.
@@ -144,6 +150,12 @@ export function PageEditor() {
               Stamps
             </PaperButton>
           </div>
+
+          {stampLimitReached && (
+            <div className="text-sm font-bold text-destructive text-center border-2 border-destructive/20 bg-destructive/10 rounded-xl p-3">
+              Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Remove one to add another.
+            </div>
+          )}
 
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
