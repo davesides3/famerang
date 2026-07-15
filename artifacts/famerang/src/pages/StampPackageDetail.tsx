@@ -1,15 +1,42 @@
 import React, { useRef, useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { PackagePlus, Trash2, Check, X, Pencil, Download, Upload, AlertCircle } from 'lucide-react';
+import { PackagePlus, Trash2, Check, X, Pencil, Download } from 'lucide-react';
 import {
   useStampPackages, renameStampPackage,
   useStamps, addStamp, deleteStamp, StampInUseError,
 } from '@/lib/hooks';
-import { exportStampPackageZip, importStampPackageZip } from '@/lib/stampPackZip';
+import { exportStampPackageZip } from '@/lib/stampPackZip';
 import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { useHeaderClose } from '@/components/layout/AppLayout';
+
+/** Compact icon-over-label action button, matching the "Add Page" toolbar
+ * button style on the Booklet Hub, so Add Stamps can sit on the same line
+ * as Rename and Export in mobile portrait view. */
+function ToolbarAction({
+  icon,
+  label,
+  onClick,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl hover:bg-muted active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none text-muted-foreground"
+    >
+      {icon}
+      <span className="text-[11px] font-bold leading-none whitespace-nowrap">{label}</span>
+    </button>
+  );
+}
 
 /**
  * Full-screen view of a single stamp package's stamps, taking over the
@@ -32,11 +59,7 @@ export function StampPackageDetail() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameName, setRenameName] = useState('');
 
-  const [mergeError, setMergeError] = useState<string | null>(null);
-  const [isMerging, setIsMerging] = useState(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const mergeFileInputRef = useRef<HTMLInputElement>(null);
 
   const openRename = () => {
     if (!pkg) return;
@@ -67,21 +90,6 @@ export function StampPackageDetail() {
       await addStamp(packageId, file, name);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const handleMergePackFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !packageId) return;
-    try {
-      setMergeError(null);
-      setIsMerging(true);
-      await importStampPackageZip(file, { mode: 'merge', packageId });
-    } catch (err: any) {
-      setMergeError(err.message || 'Import failed. The file might not be a valid stamp pack.');
-    } finally {
-      setIsMerging(false);
-      if (mergeFileInputRef.current) mergeFileInputRef.current.value = '';
-    }
   };
 
   const handleDeleteStamp = async (id: string) => {
@@ -116,21 +124,10 @@ export function StampPackageDetail() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-2 mt-3 flex-wrap">
-                <div className="flex gap-2 flex-wrap">
-                  <PaperButton variant="ghost" size="sm" onClick={openRename}>
-                    <Pencil className="w-4 h-4 mr-2" /> Rename
-                  </PaperButton>
-                  <PaperButton variant="ghost" size="sm" onClick={handleExport}>
-                    <Download className="w-4 h-4 mr-2" /> Export
-                  </PaperButton>
-                  <PaperButton variant="ghost" size="sm" onClick={() => mergeFileInputRef.current?.click()} disabled={isMerging}>
-                    <Upload className="w-4 h-4 mr-2" /> {isMerging ? 'Importing...' : 'Import Into Pack'}
-                  </PaperButton>
-                </div>
-                <PaperButton size="sm" onClick={() => fileInputRef.current?.click()}>
-                  <PackagePlus className="w-4 h-4 mr-2" /> Add Stamps
-                </PaperButton>
+              <div className="flex items-center justify-between gap-1 mt-1">
+                <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
+                <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
+                <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
               </div>
             </div>
 
@@ -149,15 +146,7 @@ export function StampPackageDetail() {
               </form>
             )}
 
-            {mergeError && (
-              <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                <p className="text-sm font-bold">{mergeError}</p>
-              </div>
-            )}
-
             <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStamps} />
-            <input type="file" accept=".zip,application/zip" ref={mergeFileInputRef} className="hidden" onChange={handleMergePackFile} />
 
             {stamps?.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl">

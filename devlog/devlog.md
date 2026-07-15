@@ -17,6 +17,9 @@ Ideas
 
 Change Log
 
+2026-07-14 Tuesday
+- revise stamps UI
+
 2026-07-13 Monday
 - UI cleanups
 - limit to 5 stamps on a page
