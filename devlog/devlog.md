@@ -1,5 +1,4 @@
 Fixes
-- restore has to insert stamps
 - redo stamp interface
 - initial stamp sets
 
