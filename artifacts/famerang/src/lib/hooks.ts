@@ -237,6 +237,20 @@ export async function reorderStampPackages(orderedPackageIds: string[]): Promise
   });
 }
 
+/** Usage summary for a stamp package, used to warn before deletion: how many
+ * of its stamps are placed somewhere, and across how many distinct pages. */
+export async function getStampPackageUsage(
+  id: string,
+): Promise<{ stampCount: number; pageCount: number }> {
+  const stamps = await db.stamps.where('packageId').equals(id).toArray();
+  const stampIds = stamps.map((s) => s.id);
+  if (!stampIds.length) return { stampCount: 0, pageCount: 0 };
+  const placements = await db.pageStamps.where('stampId').anyOf(stampIds).toArray();
+  const usedStampIds = new Set(placements.map((p) => p.stampId));
+  const pageIds = new Set(placements.map((p) => p.pageId));
+  return { stampCount: usedStampIds.size, pageCount: pageIds.size };
+}
+
 /** Throws StampInUseError (aggregate count) if any stamp in the package is
  * still placed on a page and `force` is not passed. */
 export async function deleteStampPackage(

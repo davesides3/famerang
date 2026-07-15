@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Plus, Stamp, Check, X, Upload, AlertCircle } from 'lucide-react';
 import {
-  useStampPackages, createStampPackage, reorderStampPackages, deleteStampPackage, StampInUseError,
+  useStampPackages, createStampPackage, reorderStampPackages, deleteStampPackage, getStampPackageUsage, StampInUseError,
 } from '@/lib/hooks';
 import { importStampPackageZip } from '@/lib/stampPackZip';
 import { PaperButton } from '@/components/ui/PaperButton';
@@ -113,12 +113,16 @@ export function StampsLibrary() {
   };
 
   const handleDeletePackage = async (pkg: StampPackage) => {
+    const usage = await getStampPackageUsage(pkg.id);
+    const message = usage.stampCount > 0
+      ? `Delete package "${pkg.name}"? There ${usage.stampCount === 1 ? 'is' : 'are'} ${usage.stampCount} stamp${usage.stampCount === 1 ? '' : 's'} used across ${usage.pageCount} page${usage.pageCount === 1 ? '' : 's'}.`
+      : `Delete package "${pkg.name}"?`;
+    if (!confirm(message)) return;
     try {
-      if (confirm(`Delete package "${pkg.name}"?`)) {
-        await deleteStampPackage(pkg.id);
-      }
+      await deleteStampPackage(pkg.id, { force: usage.stampCount > 0 });
     } catch (err) {
       if (err instanceof StampInUseError) {
+        // Fallback in case usage changed between the check and the delete.
         if (confirm(`Cannot delete: Stamps from this package are used on ${err.usageCount} page(s). Force delete anyway (will remove them from pages)?`)) {
           await deleteStampPackage(pkg.id, { force: true });
         }
