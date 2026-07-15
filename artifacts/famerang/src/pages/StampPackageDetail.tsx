@@ -177,12 +177,14 @@ export function StampPackageDetail() {
                   <div key={stamp.id} className="relative group bg-white border-2 border-border rounded-xl aspect-square flex items-center justify-center p-2">
                     <img src={stamp.pngDataUrl} alt={stamp.name} className="max-w-full max-h-full object-contain" />
                     <button
+                      type="button"
+                      aria-label={`Delete stamp ${stamp.name}`}
                       onClick={() => handleDeleteStamp(stamp.id)}
-                      className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                      className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1.5 shadow-md active:scale-95 transition-transform"
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
-                    <div className="absolute bottom-1 w-full text-center text-[10px] font-bold text-muted-foreground bg-white/80 truncate px-1 opacity-0 group-hover:opacity-100">
+                    <div className="absolute bottom-1 w-full text-center text-[10px] font-bold text-muted-foreground bg-white/80 truncate px-1">
                       {stamp.name}
                     </div>
                   </div>

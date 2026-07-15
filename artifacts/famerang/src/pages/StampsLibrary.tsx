@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Plus, Stamp, Check, X, Upload, AlertCircle } from 'lucide-react';
 import {
-  useStampPackages, createStampPackage, reorderStampPackages,
+  useStampPackages, createStampPackage, reorderStampPackages, deleteStampPackage, StampInUseError,
 } from '@/lib/hooks';
 import { importStampPackageZip } from '@/lib/stampPackZip';
 import { PaperButton } from '@/components/ui/PaperButton';
@@ -112,6 +112,20 @@ export function StampsLibrary() {
     window.addEventListener('pointerup', handlePointerUp);
   };
 
+  const handleDeletePackage = async (pkg: StampPackage) => {
+    try {
+      if (confirm(`Delete package "${pkg.name}"?`)) {
+        await deleteStampPackage(pkg.id);
+      }
+    } catch (err) {
+      if (err instanceof StampInUseError) {
+        if (confirm(`Cannot delete: Stamps from this package are used on ${err.usageCount} page(s). Force delete anyway (will remove them from pages)?`)) {
+          await deleteStampPackage(pkg.id, { force: true });
+        }
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full animate-in fade-in">
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -175,6 +189,7 @@ export function StampsLibrary() {
               isDragging={draggedIdx === i}
               onToggle={() => setLocation(`/stamps/${pkg.id}`)}
               onGripPointerDown={(e) => handleGripPointerDown(e, i)}
+              onDelete={() => handleDeletePackage(pkg)}
               rowRef={(el) => {
                 if (el) rowRefs.current.set(i, el);
                 else rowRefs.current.delete(i);
