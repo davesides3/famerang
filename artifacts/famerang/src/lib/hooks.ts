@@ -207,21 +207,34 @@ export async function reorderPages(
 // Stamp packages
 // ---------------------------------------------------------------------------
 
+/** Live list of stamp packages in user-defined display order. */
 export function useStampPackages(): StampPackage[] | undefined {
   return useLiveQuery(
-    () => db.stampPackages.orderBy('createdAt').reverse().toArray(),
+    () => db.stampPackages.orderBy('sortOrder').toArray(),
     [],
   );
 }
 
 export async function createStampPackage(name: string): Promise<StampPackage> {
-  const pkg: StampPackage = { id: newId(), name, createdAt: Date.now() };
+  const existing = await db.stampPackages.toArray();
+  const maxOrder = existing.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
+  const pkg: StampPackage = { id: newId(), name, createdAt: Date.now(), sortOrder: maxOrder + 1 };
   await db.stampPackages.add(pkg);
   return pkg;
 }
 
 export async function renameStampPackage(id: string, name: string): Promise<void> {
   await db.stampPackages.update(id, { name });
+}
+
+/** Atomically re-numbers stamp packages to match `orderedPackageIds`,
+ * mirroring `reorderPages` for booklet pages. */
+export async function reorderStampPackages(orderedPackageIds: string[]): Promise<void> {
+  await db.transaction('rw', db.stampPackages, async () => {
+    await Promise.all(
+      orderedPackageIds.map((id, index) => db.stampPackages.update(id, { sortOrder: index })),
+    );
+  });
 }
 
 /** Throws StampInUseError (aggregate count) if any stamp in the package is

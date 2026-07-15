@@ -38,6 +38,26 @@ class FamerangDB extends Dexie {
             booklet.lastBackedUpAt = null;
           }),
       );
+    // v3: stamp packages become user-orderable (like booklet pages), so the
+    // Stamp Library can show them as a drag-to-reorder vertical list instead
+    // of a horizontal row. Backfill sortOrder from createdAt (oldest first)
+    // so existing packages land in a stable, sensible order.
+    this.version(3)
+      .stores({
+        booklets: 'id, updatedAt',
+        pages: 'id, bookletId, sortOrder',
+        stampPackages: 'id, createdAt, sortOrder',
+        stamps: 'id, packageId, contentHash',
+        pageStamps: 'id, pageId, stampId',
+      })
+      .upgrade(async (tx) => {
+        const packages = await tx.table('stampPackages').toCollection().sortBy('createdAt');
+        await Promise.all(
+          packages.map((pkg: StampPackage, index: number) =>
+            tx.table('stampPackages').update(pkg.id, { sortOrder: index }),
+          ),
+        );
+      });
   }
 }
 

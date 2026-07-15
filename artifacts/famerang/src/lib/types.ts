@@ -50,6 +50,10 @@ export interface StampPackage {
   id: string;
   name: string;
   createdAt: number;
+  // Position in the user-orderable stamp package list (lower = higher up).
+  // Newly created/imported/restored packages are appended after the
+  // current maximum so they land at the bottom of the list.
+  sortOrder: number;
 }
 
 export interface Stamp {

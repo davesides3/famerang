@@ -1,0 +1,1 @@
+- [Famerang orderable-list pattern](famerang-orderable-lists.md) — how booklet pages / stamp packages implement drag-reorder + append-to-bottom; reuse this pattern for any new orderable list in the app.

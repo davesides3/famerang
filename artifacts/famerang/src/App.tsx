@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Home } from '@/pages/Home';
 import { BookletHub } from '@/pages/BookletHub';
 import { PageEditor } from '@/pages/PageEditor';
+import { StampPicker } from '@/pages/StampPicker';
 import { StampsLibrary } from '@/pages/StampsLibrary';
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/booklet/:id" component={BookletHub} />
         <Route path="/booklet/:bookletId/page/:pageId" component={PageEditor} />
+        <Route path="/booklet/:bookletId/page/:pageId/stamps" component={StampPicker} />
         <Route path="/stamps" component={StampsLibrary} />
         <Route component={NotFound} />
       </Switch>

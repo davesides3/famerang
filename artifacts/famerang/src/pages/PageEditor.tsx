@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, useStampPackages, useStamps, placeStamp, removePageStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
+import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, removePageStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -17,16 +17,12 @@ export function PageEditor() {
   const booklet = useBooklet(bookletId);
   const pages = usePages(bookletId);
   const page = usePageWithStamps(pageId);
-  const stampPackages = useStampPackages();
 
   const currentIndex = pages?.findIndex((p) => p.id === pageId) ?? -1;
   const prevPage = currentIndex > 0 ? pages?.[currentIndex - 1] : undefined;
   const nextPage = pages && currentIndex >= 0 && currentIndex < pages.length - 1 ? pages[currentIndex + 1] : undefined;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  const [isStampDrawerOpen, setIsStampDrawerOpen] = useState(false);
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
 
   // Auto-save text
   const [textContent, setTextContent] = useState(page?.textContent || '');
@@ -48,12 +44,7 @@ export function PageEditor() {
 
   const stampLimitReached = (page?.stamps.length ?? 0) >= MAX_STAMPS_PER_PAGE;
 
-  const handleStampTap = async (stampId: string) => {
-    if (!pageId || stampLimitReached) return;
-    // Place at center by default
-    await placeStamp(pageId, stampId, 0.5, 0.5);
-    setIsStampDrawerOpen(false);
-  };
+  const openStampPicker = () => setLocation(`/booklet/${bookletId}/page/${pageId}/stamps`);
 
   const handleCanvasTap = (xRatio: number, yRatio: number) => {
     // We could use this to place a selected stamp, or just ignore for now.
@@ -64,8 +55,6 @@ export function PageEditor() {
     if (!pageId || !page) return;
     updatePageText(pageId, textContent, page.textPlacement === 'above' ? 'below' : 'above');
   };
-
-  const stampsInCurrentPackage = useStamps(selectedPackageId || stampPackages?.[0]?.id);
 
   // This is a full-screen overlay-style view, so it shares the app's
   // top header (Famerang + Close) instead of its own bespoke bar --
@@ -150,7 +139,7 @@ export function PageEditor() {
               <ImagePlus className="w-5 h-5 mr-2" />
               {page.photoDataUrl ? 'Replace Photo' : 'Add Photo'}
             </PaperButton>
-            <PaperButton variant="primary" className="flex-1" onClick={() => setIsStampDrawerOpen(true)}>
+            <PaperButton variant="primary" className="flex-1" onClick={openStampPicker}>
               <Sticker className="w-5 h-5 mr-2" />
               Stamps
             </PaperButton>
@@ -180,53 +169,6 @@ export function PageEditor() {
           <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handlePhotoUpload} />
         </div>
       </div>
-
-      {/* Stamp Drawer (Poor man's bottom sheet without extra libs to ensure reliability) */}
-      {isStampDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/40 backdrop-blur-sm animate-in fade-in" onClick={() => setIsStampDrawerOpen(false)}>
-          <div className="bg-card border-t-4 border-border rounded-t-3xl min-h-[50vh] max-h-[80vh] flex flex-col animate-in slide-in-from-bottom-full" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-center p-3">
-              <div className="w-12 h-1.5 bg-border rounded-full" />
-            </div>
-            {stampLimitReached && (
-              <div className="px-4 pb-2 text-sm font-bold text-destructive text-center">
-                Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Remove one to add another.
-              </div>
-            )}
-            <div className="px-4 pb-2 border-b-2 border-border flex gap-2 overflow-x-auto hide-scrollbar">
-              {stampPackages?.map(pkg => (
-                <PaperButton 
-                  key={pkg.id} 
-                  variant={(selectedPackageId || stampPackages[0]?.id) === pkg.id ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedPackageId(pkg.id)}
-                  className="shrink-0"
-                >
-                  {pkg.name}
-                </PaperButton>
-              ))}
-              {(!stampPackages || stampPackages.length === 0) && (
-                <div className="text-muted-foreground text-sm font-bold py-2">No stamp packs yet. Go to Library to add some!</div>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 grid grid-cols-4 gap-4 pb-safe">
-              {stampsInCurrentPackage?.map(stamp => (
-                <button 
-                  key={stamp.id}
-                  disabled={stampLimitReached}
-                  className="aspect-square bg-white border-2 border-border rounded-xl p-2 hover:border-primary hover:-translate-y-1 transition-all flex items-center justify-center disabled:opacity-30 disabled:hover:translate-y-0 disabled:hover:border-border disabled:cursor-not-allowed"
-                  onClick={() => handleStampTap(stamp.id)}
-                >
-                  <img src={stamp.pngDataUrl} alt={stamp.name} className="max-w-full max-h-full object-contain drop-shadow-sm" />
-                </button>
-              ))}
-              {stampsInCurrentPackage?.length === 0 && (
-                <div className="col-span-4 text-center py-8 text-muted-foreground font-bold">This pack is empty.</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

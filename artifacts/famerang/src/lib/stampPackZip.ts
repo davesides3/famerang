@@ -68,10 +68,13 @@ export async function importStampPackageZip(
       if (!existing) throw new Error('Target stamp pack no longer exists.');
       targetPackage = existing;
     } else {
+      const existing = await db.stampPackages.toArray();
+      const maxOrder = existing.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
       targetPackage = {
         id: newId(),
         name: payload.package.name,
         createdAt: Date.now(),
+        sortOrder: maxOrder + 1,
       };
       await db.stampPackages.add(targetPackage);
     }

@@ -67,6 +67,47 @@ export async function exportBackupZip(): Promise<Blob> {
   return blob;
 }
 
+/** Assigns sortOrder for a batch of restored stamp packages: packages that
+ * already exist on this device keep their current position (so restore
+ * never reshuffles the local list), while packages that don't exist yet are
+ * appended after the current maximum, in the order they appear in the
+ * backup -- landing at the bottom of the ordered list instead of the top or
+ * an arbitrary position. */
+function isValidSortOrder(value: unknown): value is number {
+  return typeof value === 'number' && !Number.isNaN(value);
+}
+
+/** Backfills `sortOrder` for stamp packages that don't have a valid one --
+ * e.g. a backup created before package ordering existed. Uses `createdAt`
+ * to reconstruct a stable, sensible order rather than leaving `sortOrder`
+ * missing/NaN (which would break `Math.max`-based append-to-bottom logic
+ * for every package created afterward). */
+function withNormalizedPackageOrder(packages: StampPackage[]): StampPackage[] {
+  if (packages.every((p) => isValidSortOrder(p.sortOrder))) return packages;
+  const orderById = new Map(
+    [...packages]
+      .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0))
+      .map((p, index) => [p.id, index] as const),
+  );
+  return packages.map((p) =>
+    isValidSortOrder(p.sortOrder) ? p : { ...p, sortOrder: orderById.get(p.id)! },
+  );
+}
+
+async function withPreservedPackageOrder(packages: StampPackage[]): Promise<StampPackage[]> {
+  if (!packages.length) return packages;
+  const [existingById, allLocal] = await Promise.all([
+    db.stampPackages.bulkGet(packages.map((p) => p.id)),
+    db.stampPackages.toArray(),
+  ]);
+  let nextOrder = allLocal.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1) + 1;
+  return packages.map((pkg, i) => {
+    const existing = existingById[i];
+    if (existing) return { ...pkg, sortOrder: existing.sortOrder };
+    return { ...pkg, sortOrder: nextOrder++ };
+  });
+}
+
 export type RestoreMode = 'replace' | 'merge';
 
 /**
@@ -106,7 +147,15 @@ export async function restoreBackupZip(file: File, mode: RestoreMode): Promise<v
       }
       await db.booklets.bulkPut(payload.booklets);
       await db.pages.bulkPut(payload.pages);
-      await db.stampPackages.bulkPut(payload.stampPackages);
+      // In "replace" mode the table was just cleared, so every package is
+      // new and the backup's own order (already encoded in sortOrder) is
+      // used as-is. In "merge" mode, packages already on this device keep
+      // their current position and only genuinely new ones are appended.
+      const stampPackages =
+        mode === 'replace'
+          ? withNormalizedPackageOrder(payload.stampPackages)
+          : await withPreservedPackageOrder(payload.stampPackages);
+      await db.stampPackages.bulkPut(stampPackages);
       await db.stamps.bulkPut(payload.stamps);
       await db.pageStamps.bulkPut(payload.pageStamps);
     },
@@ -223,7 +272,10 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
 
       await db.booklets.put(restoredBooklet);
       if (restoredPages.length) await db.pages.bulkPut(restoredPages);
-      if (payload.stampPackages?.length) await db.stampPackages.bulkPut(payload.stampPackages);
+      if (payload.stampPackages?.length) {
+        const stampPackages = await withPreservedPackageOrder(payload.stampPackages);
+        await db.stampPackages.bulkPut(stampPackages);
+      }
       if (payload.stamps?.length) await db.stamps.bulkPut(payload.stamps);
       if (restoredPageStamps.length) await db.pageStamps.bulkPut(restoredPageStamps);
     },
