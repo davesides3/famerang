@@ -4,6 +4,7 @@ import { BookOpen, Stamp, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import famerangLogo from '@/assets/famerang-logo.png';
 import { LandscapeGuard } from '@/components/layout/LandscapeGuard';
+import { ThemeToggle } from '@/components/layout/ThemeToggle';
 
 interface HeaderOverride {
   label: string;
@@ -115,7 +116,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <img src={famerangLogo} alt="" className="h-9 w-9 object-contain shrink-0" />
             Famerang
           </Link>
-          <nav className="flex items-center gap-1">{rightContent}</nav>
+          <nav className="flex items-center gap-1">
+            {rightContent}
+            <ThemeToggle />
+          </nav>
         </header>
         <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
           {children}
