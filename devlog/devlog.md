@@ -4,6 +4,10 @@ Fixes
 Revisions
 
 Enhancements
+- light/dark mode toggle
+- order stamps by name
+- add author and URL to stamp package
+- remove accordian UI when adding stamp to page
 
 website
 - install as PWA - add to home screen
