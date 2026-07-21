@@ -63,6 +63,7 @@ export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
       artist: draftArtist.trim() || undefined,
       creditsUrl: draftUrl.trim() || undefined,
     });
+    onClose();
   };
 
   const handleCancel = async () => {
@@ -74,6 +75,7 @@ export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
     setDraftArtist(pkg.artist ?? '');
     setDraftUrl(pkg.creditsUrl ?? '');
     setLocalLocked(pkg.creditsLocked ?? false);
+    onClose();
   };
 
   const displayUrl = isEditing ? draftUrl : (pkg.creditsUrl ?? '');
