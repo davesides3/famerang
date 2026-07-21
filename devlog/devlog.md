@@ -1,12 +1,9 @@
 Fixes
-- initial stamp sets
 
 Revisions
 
 Enhancements
-- order stamps by name
-- add author and URL to stamp package
-- remove accordian UI when adding stamp to page
+- include base stamps
 
 website
 - install as PWA - add to home screen
@@ -22,7 +19,13 @@ Change Log
 
 2026-07-20 Monday
 - black cat stamps by Gemini
-- light/dark mode
+- light/dark mode, several fixes
+- enhanced stamp picker
+- order stamps by name
+- add info to stamp packages
+- yorky-grey-tan and yorky-black-tan stamps by Gemini
+- fix photo centering bug
+- Android launch of author url doesn't launch new browser
 
 2026-07-14 Tuesday
 - revise stamps UI
