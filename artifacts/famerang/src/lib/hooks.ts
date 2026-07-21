@@ -280,7 +280,10 @@ export async function deleteStampPackage(
 
 export function useStamps(packageId: string | undefined): Stamp[] | undefined {
   return useLiveQuery<Stamp[]>(
-    () => (packageId ? db.stamps.where('packageId').equals(packageId).toArray() : Promise.resolve([])),
+    () => (packageId
+      ? db.stamps.where('packageId').equals(packageId).toArray()
+          .then(rows => rows.sort((a, b) => a.name.localeCompare(b.name)))
+      : Promise.resolve([])),
     [packageId],
   );
 }
