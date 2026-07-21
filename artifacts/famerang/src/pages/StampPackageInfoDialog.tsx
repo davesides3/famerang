@@ -141,11 +141,9 @@ export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
             ) : hasValidUrl ? (
               <a
                 href={displayUrl}
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.open(displayUrl, '_blank', 'noopener,noreferrer');
-                }}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline break-all cursor-pointer"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline break-all"
               >
                 {displayUrl}
                 <ExternalLink className="w-3.5 h-3.5 shrink-0" />
