@@ -22,7 +22,9 @@ export function StampPicker() {
   const page = usePageWithStamps(pageId);
   const stampPackages = useStampPackages();
 
-  const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null);
+  const [selectedPkgId, setSelectedPkgId] = useState<string | null>(
+    () => localStorage.getItem('famerang:lastStampPackId')
+  );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +33,11 @@ export function StampPicker() {
   useEffect(() => {
     if (!stampPackages || stampPackages.length === 0) return;
     const still = selectedPkgId && stampPackages.some(p => p.id === selectedPkgId);
-    if (!still) setSelectedPkgId(stampPackages[0].id);
+    if (!still) {
+      const fallback = stampPackages[0].id;
+      setSelectedPkgId(fallback);
+      localStorage.setItem('famerang:lastStampPackId', fallback);
+    }
   }, [stampPackages, selectedPkgId]);
 
   // Close dropdown when clicking outside
@@ -65,6 +71,7 @@ export function StampPicker() {
 
   const handleSelectPack = (pkgId: string) => {
     setSelectedPkgId(pkgId);
+    localStorage.setItem('famerang:lastStampPackId', pkgId);
     setDropdownOpen(false);
   };
 
