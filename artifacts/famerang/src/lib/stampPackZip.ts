@@ -75,6 +75,11 @@ export async function importStampPackageZip(
         name: payload.package.name,
         createdAt: Date.now(),
         sortOrder: maxOrder + 1,
+        // Carry over optional credit fields from the exported payload so that
+        // packs shipped with artist info and lock state import faithfully.
+        ...(payload.package.artist !== undefined && { artist: payload.package.artist }),
+        ...(payload.package.creditsUrl !== undefined && { creditsUrl: payload.package.creditsUrl }),
+        ...(payload.package.creditsLocked !== undefined && { creditsLocked: payload.package.creditsLocked }),
       };
       await db.stampPackages.add(targetPackage);
     }

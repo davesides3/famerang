@@ -58,6 +58,16 @@ class FamerangDB extends Dexie {
           ),
         );
       });
+    // v4: stamp packages gain optional artist credit fields (artist, creditsUrl,
+    // creditsLocked). All three are optional so existing records need no
+    // backfill — Dexie simply leaves them absent on old rows.
+    this.version(4).stores({
+      booklets: 'id, updatedAt',
+      pages: 'id, bookletId, sortOrder',
+      stampPackages: 'id, createdAt, sortOrder',
+      stamps: 'id, packageId, contentHash',
+      pageStamps: 'id, pageId, stampId',
+    });
   }
 }
 

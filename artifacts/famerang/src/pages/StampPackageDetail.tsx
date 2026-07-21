@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { PackagePlus, Trash2, Check, X, Pencil, Download } from 'lucide-react';
+import { PackagePlus, Trash2, Check, X, Pencil, Download, Info } from 'lucide-react';
 import {
   useStampPackages, renameStampPackage,
   useStamps, addStamp, deleteStamp, getStampUsage, StampInUseError,
@@ -11,6 +11,7 @@ import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import famerangLogo from '@/assets/famerang-logo.png';
+import { StampPackageInfoDialog } from './StampPackageInfoDialog';
 
 /** Compact icon-over-label action button, matching the "Add Page" toolbar
  * button style on the Booklet Hub, so Add Stamps can sit on the same line
@@ -59,6 +60,7 @@ export function StampPackageDetail() {
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameName, setRenameName] = useState('');
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -153,10 +155,19 @@ export function StampPackageDetail() {
               <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
               <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
               <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
+              <ToolbarAction icon={<Info className="w-5 h-5" />} label="Info" onClick={() => setIsInfoOpen(true)} />
             </div>
           </div>
 
           <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStamps} />
+
+          {isInfoOpen && (
+            <StampPackageInfoDialog
+              pkg={pkg}
+              open={isInfoOpen}
+              onClose={() => setIsInfoOpen(false)}
+            />
+          )}
 
           <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 pb-safe">
             {stamps?.length === 0 ? (

@@ -227,6 +227,15 @@ export async function renameStampPackage(id: string, name: string): Promise<void
   await db.stampPackages.update(id, { name });
 }
 
+/** Updates the artist credit fields on a stamp package. All fields are
+ * optional — pass only the keys you want to change. */
+export async function updateStampPackageCredits(
+  id: string,
+  patch: { artist?: string; creditsUrl?: string; creditsLocked?: boolean },
+): Promise<void> {
+  await db.stampPackages.update(id, patch);
+}
+
 /** Atomically re-numbers stamp packages to match `orderedPackageIds`,
  * mirroring `reorderPages` for booklet pages. */
 export async function reorderStampPackages(orderedPackageIds: string[]): Promise<void> {

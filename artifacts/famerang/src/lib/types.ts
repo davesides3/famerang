@@ -54,6 +54,12 @@ export interface StampPackage {
   // Newly created/imported/restored packages are appended after the
   // current maximum so they land at the bottom of the list.
   sortOrder: number;
+  // Optional artist credit metadata. `creditsLocked` prevents casual editing
+  // of these fields in the UI (soft protection for packs shipped with the
+  // product); the padlock icon in the Info dialog lets the curator toggle it.
+  artist?: string;
+  creditsUrl?: string;
+  creditsLocked?: boolean;
 }
 
 export interface Stamp {
