@@ -409,7 +409,7 @@ export function BookletHub() {
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 onBlur={handleTitleBlur}
-                className="w-full bg-white px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
+                className="w-full bg-background text-foreground px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               />
             </div>
 
@@ -418,7 +418,7 @@ export function BookletHub() {
               <select
                 value={booklet.canvasSize}
                 onChange={(e) => updateBooklet(booklet.id, { canvasSize: Number(e.target.value) as any })}
-                className="w-full bg-white px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
+                className="w-full bg-background text-foreground px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               >
                 {CANVAS_SIZES.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -433,7 +433,7 @@ export function BookletHub() {
               <select
                 value={booklet.fontFamily}
                 onChange={(e) => updateBooklet(booklet.id, { fontFamily: e.target.value })}
-                className="w-full bg-white px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
+                className="w-full bg-background text-foreground px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
                 style={{ fontFamily: booklet.fontFamily }}
               >
                 {FONT_FAMILY_OPTIONS.map((f) => (
