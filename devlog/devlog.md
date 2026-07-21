@@ -4,7 +4,6 @@ Fixes
 Revisions
 
 Enhancements
-- light/dark mode toggle
 - order stamps by name
 - add author and URL to stamp package
 - remove accordian UI when adding stamp to page
@@ -20,6 +19,10 @@ Ideas
 - Photorang
 
 Change Log
+
+2026-07-20 Monday
+- black cat stamps by Gemini
+- light/dark mode
 
 2026-07-14 Tuesday
 - revise stamps UI

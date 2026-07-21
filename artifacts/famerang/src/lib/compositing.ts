@@ -124,7 +124,7 @@ export async function renderPageToCanvas(
     page.textPlacement === 'above'
       ? margin + textBlockHeight
       : margin;
-  const photoBoxLeft = margin;
+  const photoBoxLeft = (renderSize - photoBoxSize) / 2;
 
   // Photo (center-cropped square, already downscaled on upload)
   if (page.photoDataUrl) {
