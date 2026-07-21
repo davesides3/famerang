@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
 import { useStampPackages, useStamps, usePageWithStamps, placeStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -58,26 +59,21 @@ export function StampPicker() {
           </div>
         )}
 
-        {/* Package tab bar — scrolls horizontally if there are many packages */}
+        {/* Pack dropdown — one line, scales to any number of packs */}
         {stampPackages && stampPackages.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-none -mx-4 px-4">
-            {stampPackages.map((pkg) => {
-              const isSelected = selectedPkgId === pkg.id;
-              return (
-                <button
-                  key={pkg.id}
-                  onClick={() => setSelectedPkgId(pkg.id)}
-                  className={[
-                    'shrink-0 px-4 py-1.5 rounded-full text-sm font-bold border-2 transition-colors whitespace-nowrap',
-                    isSelected
-                      ? 'bg-primary border-primary text-primary-foreground'
-                      : 'bg-background border-border text-foreground hover:border-primary/50',
-                  ].join(' ')}
-                >
+          <div className="relative mb-3">
+            <select
+              value={selectedPkgId ?? ''}
+              onChange={(e) => setSelectedPkgId(e.target.value)}
+              className="w-full appearance-none rounded-xl border-2 border-border bg-background px-4 py-2.5 pr-10 text-sm font-bold text-foreground focus:border-primary focus:outline-none"
+            >
+              {stampPackages.map((pkg) => (
+                <option key={pkg.id} value={pkg.id}>
                   {pkg.name}
-                </button>
-              );
-            })}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           </div>
         )}
       </div>
