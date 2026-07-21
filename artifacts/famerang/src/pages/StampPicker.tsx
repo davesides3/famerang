@@ -140,6 +140,24 @@ export function StampPicker() {
         )}
       </div>
 
+      {/* ── Pack context header ───────────────────────────────────────────── */}
+      {selectedPkg && (
+        <div className="shrink-0 flex items-center gap-2.5 px-4 py-2 bg-muted/40 border-b border-border">
+          <span className="shrink-0 w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden">
+            {firstStampUrls?.[selectedPkg.id] ? (
+              <img
+                src={firstStampUrls[selectedPkg.id]}
+                alt=""
+                className="w-full h-full object-contain p-0.5"
+              />
+            ) : (
+              <span className="text-muted-foreground text-xs">?</span>
+            )}
+          </span>
+          <span className="text-sm font-bold text-foreground truncate">{selectedPkg.name}</span>
+        </div>
+      )}
+
       {/* ── Scrollable stamp grid ─────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-safe">
         {(!stampPackages || stampPackages.length === 0) ? (
