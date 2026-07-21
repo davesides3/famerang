@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
-import { useStampPackages, useStamps, usePageWithStamps, placeStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
+import { useStampPackages, useStamps, usePageWithStamps, useFirstStampUrls, placeStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 
 /**
@@ -23,6 +23,8 @@ export function StampPicker() {
   const stampPackages = useStampPackages();
 
   const [selectedPkgId, setSelectedPkgId] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Auto-select the first package once packages load (or whenever the
   // selection becomes stale because a package was deleted).
@@ -32,8 +34,25 @@ export function StampPicker() {
     if (!still) setSelectedPkgId(stampPackages[0].id);
   }, [stampPackages, selectedPkgId]);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropdownOpen]);
+
+  const packageIds = stampPackages?.map(p => p.id) ?? [];
+  const firstStampUrls = useFirstStampUrls(packageIds);
+
   const stampsInSelected = useStamps(selectedPkgId || undefined);
   const stampLimitReached = (page?.stamps.length ?? 0) >= MAX_STAMPS_PER_PAGE;
+
+  const selectedPkg = stampPackages?.find(p => p.id === selectedPkgId);
 
   const returnToEditor = () => setLocation(`/booklet/${bookletId}/page/${pageId}`);
   useHeaderClose(returnToEditor);
@@ -42,6 +61,11 @@ export function StampPicker() {
     if (!pageId || stampLimitReached) return;
     await placeStamp(pageId, stampId, 0.5, 0.5);
     returnToEditor();
+  };
+
+  const handleSelectPack = (pkgId: string) => {
+    setSelectedPkgId(pkgId);
+    setDropdownOpen(false);
   };
 
   if (!bookletId || !pageId) return null;
@@ -59,21 +83,59 @@ export function StampPicker() {
           </div>
         )}
 
-        {/* Pack dropdown — one line, scales to any number of packs */}
+        {/* Custom pack dropdown with thumbnails */}
         {stampPackages && stampPackages.length > 0 && (
-          <div className="relative mb-3">
-            <select
-              value={selectedPkgId ?? ''}
-              onChange={(e) => setSelectedPkgId(e.target.value)}
-              className="w-full appearance-none rounded-xl border-2 border-border bg-background px-4 py-2.5 pr-10 text-sm font-bold text-foreground focus:border-primary focus:outline-none"
+          <div className="relative mb-3" ref={dropdownRef}>
+            {/* Trigger button */}
+            <button
+              type="button"
+              onClick={() => setDropdownOpen(o => !o)}
+              className="w-full flex items-center gap-2.5 rounded-xl border-2 border-border bg-background px-3 py-2 text-sm font-bold text-foreground focus:border-primary focus:outline-none hover:border-primary/60 transition-colors"
             >
-              {stampPackages.map((pkg) => (
-                <option key={pkg.id} value={pkg.id}>
-                  {pkg.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              {/* Selected pack thumbnail */}
+              <span className="shrink-0 w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden">
+                {selectedPkg && firstStampUrls?.[selectedPkg.id] ? (
+                  <img
+                    src={firstStampUrls[selectedPkg.id]}
+                    alt=""
+                    className="w-full h-full object-contain p-0.5"
+                  />
+                ) : (
+                  <span className="text-muted-foreground text-xs">?</span>
+                )}
+              </span>
+              <span className="flex-1 text-left truncate">{selectedPkg?.name ?? 'Select a pack'}</span>
+              <ChevronDown className={`shrink-0 w-4 h-4 text-muted-foreground transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Dropdown list */}
+            {dropdownOpen && (
+              <ul className="absolute z-50 mt-1 w-full rounded-xl border-2 border-border bg-background shadow-lg overflow-hidden">
+                {stampPackages.map((pkg) => (
+                  <li key={pkg.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPack(pkg.id)}
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-left hover:bg-muted transition-colors ${pkg.id === selectedPkgId ? 'bg-primary/10 text-primary' : 'text-foreground'}`}
+                    >
+                      {/* Pack thumbnail */}
+                      <span className="shrink-0 w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden">
+                        {firstStampUrls?.[pkg.id] ? (
+                          <img
+                            src={firstStampUrls[pkg.id]}
+                            alt=""
+                            className="w-full h-full object-contain p-0.5"
+                          />
+                        ) : (
+                          <span className="text-muted-foreground text-xs leading-none">?</span>
+                        )}
+                      </span>
+                      <span className="flex-1 truncate">{pkg.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
       </div>

@@ -287,6 +287,24 @@ export async function deleteStampPackage(
 // Stamps
 // ---------------------------------------------------------------------------
 
+/** Returns a map of packageId → first stamp's pngDataUrl (alphabetical order).
+ *  Used to show thumbnails in the pack selector dropdown. */
+export function useFirstStampUrls(
+  packageIds: string[],
+): Record<string, string | undefined> | undefined {
+  const key = packageIds.join(',');
+  return useLiveQuery(async () => {
+    if (!packageIds.length) return {};
+    const result: Record<string, string | undefined> = {};
+    for (const id of packageIds) {
+      const stamps = await db.stamps.where('packageId').equals(id).toArray();
+      stamps.sort((a, b) => a.name.localeCompare(b.name));
+      result[id] = stamps[0]?.pngDataUrl;
+    }
+    return result;
+  }, [key]);
+}
+
 export function useStamps(packageId: string | undefined): Stamp[] | undefined {
   return useLiveQuery<Stamp[]>(
     () => (packageId
