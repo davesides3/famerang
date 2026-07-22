@@ -156,20 +156,19 @@ export function PageEditor() {
 
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
-              <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground shrink-0 mr-1">
-                <Trash2 className="w-10 h-10" />
-                {page.stamps.length}/{MAX_STAMPS_PER_PAGE}
+              <span className="text-xs font-bold text-muted-foreground shrink-0 mr-1">
+                Stamps ({page.stamps.length}/{MAX_STAMPS_PER_PAGE}):
               </span>
               {page.stamps.map(s => (
                 <button 
                   key={s.id} 
-                  className="relative group shrink-0"
+                  className="relative shrink-0"
                   onClick={() => removePageStamp(s.id)}
                   title="Remove stamp"
                 >
                   <img src={s.stamp.pngDataUrl} className="w-10 h-10 rounded-full border-2 border-border bg-white" />
-                  <div className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                    ×
+                  <div className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 flex items-center justify-center">
+                    <Trash2 className="w-2.5 h-2.5" />
                   </div>
                 </button>
               ))}
