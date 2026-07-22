@@ -7,6 +7,8 @@ import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import famerangLogo from '@/assets/famerang-logo.png';
 
+const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+
 export function PageEditor() {
   const [, params] = useRoute('/booklet/:bookletId/page/:pageId');
   const [, setLocation] = useLocation();
@@ -157,7 +159,7 @@ export function PageEditor() {
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">
-                Placed ({page.stamps.length}/{MAX_STAMPS_PER_PAGE}):
+                {isTouchDevice ? 'Touch' : 'Click'} to remove ({page.stamps.length}/{MAX_STAMPS_PER_PAGE}):
               </span>
               {page.stamps.map(s => (
                 <button 
