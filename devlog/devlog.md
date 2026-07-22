@@ -17,6 +17,12 @@ Ideas
 
 Change Log
 
+2026-07-21 Tuesday
+- several fixes to stamp placement / deletion
+- created dinosour package
+- problem with snagit update and transparent PNGs?
+- filed request with TechSmith - strange
+
 2026-07-20 Monday
 - black cat stamps by Gemini
 - light/dark mode, several fixes
