@@ -1,13 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, removePageStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import famerangLogo from '@/assets/famerang-logo.png';
-
-const isTouchDevice = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
 export function PageEditor() {
   const [, params] = useRoute('/booklet/:bookletId/page/:pageId');
@@ -158,8 +156,9 @@ export function PageEditor() {
 
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">
-                {isTouchDevice ? 'Touch' : 'Click'} to remove ({page.stamps.length}/{MAX_STAMPS_PER_PAGE}):
+              <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground shrink-0 mr-1">
+                <Trash2 className="w-3.5 h-3.5" />
+                {page.stamps.length}/{MAX_STAMPS_PER_PAGE}
               </span>
               {page.stamps.map(s => (
                 <button 
@@ -174,12 +173,6 @@ export function PageEditor() {
                   </div>
                 </button>
               ))}
-            </div>
-          )}
-
-          {stampLimitReached && (
-            <div className="text-sm font-bold text-destructive text-center border-2 border-destructive/20 bg-destructive/10 rounded-xl p-3">
-              Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Tap a stamp above to remove it.
             </div>
           )}
 
