@@ -53,7 +53,7 @@ export function Home() {
               placeholder="e.g. Summer at the Cabin"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              className="w-full bg-white text-gray-900 px-4 py-3 rounded-xl border-2 border-border focus:border-primary focus:outline-none transition-colors"
+              className="w-full bg-background text-foreground px-4 py-3 rounded-xl border-2 border-border focus:border-primary focus:outline-none transition-colors"
               autoFocus
             />
             <div className="flex gap-2 justify-end">

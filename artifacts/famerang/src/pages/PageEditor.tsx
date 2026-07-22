@@ -128,7 +128,7 @@ export function PageEditor() {
           <div className="flex gap-2 relative">
             <Type className="absolute left-3 top-3 text-muted-foreground w-5 h-5" />
             <textarea
-              className="flex-1 bg-white border-2 border-border rounded-xl px-10 py-2.5 resize-none h-12 focus:border-primary focus:outline-none text-lg leading-tight"
+              className="flex-1 bg-background text-foreground border-2 border-border rounded-xl px-10 py-2.5 resize-none h-12 focus:border-primary focus:outline-none text-lg leading-tight"
               style={{ fontFamily: booklet.fontFamily }}
               placeholder="Write a caption..."
               value={textContent}
