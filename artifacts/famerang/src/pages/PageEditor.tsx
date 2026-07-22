@@ -154,12 +154,6 @@ export function PageEditor() {
             </PaperButton>
           </div>
 
-          {stampLimitReached && (
-            <div className="text-sm font-bold text-destructive text-center border-2 border-destructive/20 bg-destructive/10 rounded-xl p-3">
-              Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Remove one to add another.
-            </div>
-          )}
-
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider shrink-0 mr-1">
@@ -178,6 +172,12 @@ export function PageEditor() {
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {stampLimitReached && (
+            <div className="text-sm font-bold text-destructive text-center border-2 border-destructive/20 bg-destructive/10 rounded-xl p-3">
+              Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Tap a stamp above to remove it.
             </div>
           )}
 
