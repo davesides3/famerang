@@ -101,7 +101,10 @@ export function PageEditor() {
         
         {/* Canvas Area */}
         <div className="flex-1 relative flex items-center justify-center p-4">
-          <div className="relative shadow-xl w-full max-w-[400px] aspect-square bg-white border-4 border-white">
+          {/* bg-white is intentional: the canvas is a print-fidelity preview and must
+              always render on white so exported colours match what users see here.
+              The ring uses a theme-aware colour so the frame looks tidy in dark mode. */}
+          <div className="relative shadow-xl w-full max-w-[400px] aspect-square bg-white ring-2 ring-border/40">
             <LiveCanvas 
               page={page} 
               booklet={booklet} 

@@ -98,7 +98,11 @@ export async function renderPageToCanvas(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
-  // Background
+  // Background — intentionally always white for print fidelity.
+  // The exported page must look the same on paper as it does on screen, so
+  // this must never be changed to a theme-aware colour.  Caption text is
+  // correspondingly always dark (#1a1a1a below) so it stays legible on the
+  // white background regardless of the app's current colour scheme.
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, renderSize, renderSize);
 
