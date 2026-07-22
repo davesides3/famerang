@@ -157,7 +157,7 @@ export function PageEditor() {
           {page.stamps.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
               <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground shrink-0 mr-1">
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-10 h-10" />
                 {page.stamps.length}/{MAX_STAMPS_PER_PAGE}
               </span>
               {page.stamps.map(s => (
