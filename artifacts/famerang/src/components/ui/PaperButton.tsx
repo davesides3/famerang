@@ -21,7 +21,7 @@ export const PaperButton = React.forwardRef<HTMLButtonElement, Props>(({ classNa
           "px-3 py-1.5 text-sm": size === 'sm',
           "px-4 py-2 text-base": size === 'md',
           "px-6 py-3 text-lg": size === 'lg',
-          "p-2 aspect-square": size === 'icon',
+          "p-2 aspect-square rounded-full": size === 'icon',
         },
         className
       )}
