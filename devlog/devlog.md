@@ -17,6 +17,9 @@ Ideas
 
 Change Log
 
+2026-07-22 Wednesday
+- add stamp sheet PDF option
+
 2026-07-21 Tuesday
 - several fixes to stamp placement / deletion
 - created dinosour package
