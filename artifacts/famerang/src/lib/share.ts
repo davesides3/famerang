@@ -1,8 +1,19 @@
 /**
+ * Returns true when the primary pointing device is touch (phone/tablet).
+ * On Windows/Mac/Linux desktops the pointer is always "fine" (mouse), so
+ * this returns false and we skip the OS share sheet in favour of a direct
+ * browser download.
+ */
+function isTouchDevice(): boolean {
+  return typeof window !== 'undefined' &&
+    window.matchMedia('(pointer: coarse)').matches;
+}
+
+/**
  * Shares a file through the OS share sheet (text/email/AirDrop/etc.) when
- * the Web Share API supports file sharing, otherwise falls back to
- * triggering a normal browser download. There is no server in this app, so
- * this is the only way exported files leave the device.
+ * the Web Share API supports file sharing AND we are on a touch device,
+ * otherwise falls back to triggering a normal browser download. There is no
+ * server in this app, so this is the only way exported files leave the device.
  */
 export async function shareOrDownloadFile(
   blob: Blob,
@@ -13,6 +24,7 @@ export async function shareOrDownloadFile(
   const file = new File([blob], filename, { type: mimeType });
 
   if (
+    isTouchDevice() &&
     typeof navigator !== 'undefined' &&
     'canShare' in navigator &&
     navigator.canShare({ files: [file] })
@@ -55,6 +67,7 @@ export async function shareOrDownloadFiles(
   shareText?: string,
 ): Promise<'shared' | 'downloaded'> {
   if (
+    isTouchDevice() &&
     typeof navigator !== 'undefined' &&
     'canShare' in navigator &&
     navigator.canShare({ files })
