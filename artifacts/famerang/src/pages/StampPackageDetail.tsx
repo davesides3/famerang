@@ -1,11 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
-import { PackagePlus, Trash2, Check, X, Pencil, Download, Info } from 'lucide-react';
+import { PackagePlus, Trash2, Check, X, Pencil, Download, FileText, Info } from 'lucide-react';
 import {
   useStampPackages, renameStampPackage,
   useStamps, addStamp, deleteStamp, getStampUsage, StampInUseError,
 } from '@/lib/hooks';
 import { exportStampPackageZip } from '@/lib/stampPackZip';
+import { generateStampSheetAssets } from '@/lib/stampSheet';
 import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
@@ -84,6 +85,13 @@ export function StampPackageDetail() {
     await shareOrDownloadFile(blob, `famerang-${safeName}.zip`, 'application/zip');
   };
 
+  const handlePdf = async () => {
+    if (!pkg || !stamps || stamps.length === 0) return;
+    const { pdfBlob } = await generateStampSheetAssets(pkg, stamps);
+    const safeName = pkg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    await shareOrDownloadFile(pdfBlob, `${safeName}-stamp-sheet.pdf`, 'application/pdf');
+  };
+
   const handleUploadStamps = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!packageId) return;
     const files = Array.from(e.target.files || []);
@@ -155,6 +163,7 @@ export function StampPackageDetail() {
               <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
               <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
               <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
+              <ToolbarAction icon={<FileText className="w-5 h-5" />} label="PDF" onClick={handlePdf} disabled={!stamps || stamps.length === 0} />
               <ToolbarAction icon={<Info className="w-5 h-5" />} label="Info" onClick={() => setIsInfoOpen(true)} />
             </div>
           </div>

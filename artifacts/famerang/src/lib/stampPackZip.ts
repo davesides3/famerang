@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { db } from './db';
 import type { Stamp, StampPackage } from './types';
 import { readJsonPayloadFromFile } from './zipUtil';
-import { generateStampSheetAssets } from './stampSheet';
+
 
 const STAMP_PACK_VERSION = 1;
 const STAMP_PACK_ENTRY = 'famerang-stamp-pack.json';
@@ -35,18 +35,6 @@ export async function exportStampPackageZip(packageId: string): Promise<Blob> {
 
   const zip = new JSZip();
   zip.file(STAMP_PACK_ENTRY, JSON.stringify(payload));
-
-  // Add print-ready stamp sheet (PNG + PDF) to the zip.
-  // Errors here are non-fatal — the JSON export is always included.
-  try {
-    const { pngBlobs, pdfBlob } = await generateStampSheetAssets(pkg, stamps);
-    for (const { name, blob } of pngBlobs) {
-      zip.file(name, blob);
-    }
-    zip.file('stamp-sheet.pdf', pdfBlob);
-  } catch (err) {
-    console.warn('Stamp sheet generation failed — exporting JSON only.', err);
-  }
 
   return zip.generateAsync({ type: 'blob' });
 }
