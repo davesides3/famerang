@@ -3,7 +3,6 @@ Fixes
 Revisions
 
 Enhancements
-- include base stamps
 
 website
 - install as PWA - add to home screen
@@ -19,6 +18,7 @@ Change Log
 
 2026-07-22 Wednesday
 - add stamp sheet PDF option
+- add seeded stamp packages (3)
 
 2026-07-21 Tuesday
 - several fixes to stamp placement / deletion
