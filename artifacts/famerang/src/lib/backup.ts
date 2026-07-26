@@ -1,71 +1,43 @@
 import JSZip from 'jszip';
 import { db } from './db';
 import type { Booklet, Page, PageStamp, Stamp, StampPackage } from './types';
-import { readJsonPayloadFromFile } from './zipUtil';
 
-const BACKUP_VERSION = 1;
-const BACKUP_ENTRY = 'famerang-backup.json';
-const BOOKLET_BACKUP_ENTRY = 'famerang-booklet-backup.json';
+const BOOKLET_MANIFEST_ENTRY = 'manifest.json';
+// Legacy v1 entry name — kept only for backwards-compat detection
+const BOOKLET_BACKUP_ENTRY_V1 = 'famerang-booklet-backup.json';
 
-interface BackupPayload {
-  version: number;
-  exportedAt: number;
-  booklets: Booklet[];
-  pages: Page[];
-  stampPackages: StampPackage[];
-  stamps: Stamp[];
-  pageStamps: PageStamp[];
+// ─── v2 manifest shape ───────────────────────────────────────────────────────
+
+interface BookletManifestPage extends Omit<Page, 'photoDataUrl'> {
+  /** Zip entry name for this page's photo, if it has one. */
+  photoFilename?: string;
 }
 
-interface BookletBackupPayload {
+interface BookletManifest {
+  version: 2;
+  exportedAt: number;
+  kind: 'booklet';
+  booklet: Booklet;
+  pages: BookletManifestPage[];
+  pageStamps: PageStamp[];
+  stampPackages: StampPackage[];
+  stamps: Stamp[];
+}
+
+// ─── v1 (legacy) shape — used only for import backwards compat ───────────────
+
+interface BookletBackupPayloadV1 {
   version: number;
   exportedAt: number;
   kind: 'booklet';
   booklet: Booklet;
   pages: Page[];
   pageStamps: PageStamp[];
-  // Stamps/packages referenced by this booklet's pages, included so the
-  // stamps still render correctly after restoring onto a fresh device.
   stampPackages: StampPackage[];
   stamps: Stamp[];
 }
 
-/**
- * Exports the entire local dataset -- every booklet, page, stamp package,
- * stamp, and stamp placement -- as a single ZIP file. Photos and stamp PNGs
- * are already stored as base64 data URLs, so they travel inline inside the
- * JSON payload; nothing else needs to be attached separately.
- *
- * Marks every booklet as backed-up as of now, since a full export covers
- * all of them.
- */
-export async function exportBackupZip(): Promise<Blob> {
-  const [booklets, pages, stampPackages, stamps, pageStamps] = await Promise.all([
-    db.booklets.toArray(),
-    db.pages.toArray(),
-    db.stampPackages.toArray(),
-    db.stamps.toArray(),
-    db.pageStamps.toArray(),
-  ]);
-
-  const payload: BackupPayload = {
-    version: BACKUP_VERSION,
-    exportedAt: Date.now(),
-    booklets,
-    pages,
-    stampPackages,
-    stamps,
-    pageStamps,
-  };
-
-  const zip = new JSZip();
-  zip.file(BACKUP_ENTRY, JSON.stringify(payload));
-  const blob = await zip.generateAsync({ type: 'blob' });
-
-  await markBookletsBackedUp(booklets.map((b) => b.id));
-
-  return blob;
-}
+// ─── Helper utilities ─────────────────────────────────────────────────────────
 
 /** Assigns sortOrder for a batch of restored stamp packages: packages that
  * already exist on this device keep their current position (so restore
@@ -108,64 +80,47 @@ async function withPreservedPackageOrder(packages: StampPackage[]): Promise<Stam
   });
 }
 
-export type RestoreMode = 'replace' | 'merge';
-
 /**
- * Restores a dataset previously produced by `exportBackupZip`. In "replace"
- * mode all local data is wiped first; in "merge" mode restored records are
- * upserted alongside whatever already exists on this device.
+ * Extracts the MIME type and base64 data from a data URL.
+ * Returns null if the string is not a valid data URL.
  */
-export async function restoreBackupZip(file: File, mode: RestoreMode): Promise<void> {
-  const text = await readJsonPayloadFromFile(file, BACKUP_ENTRY);
-  let payload: BackupPayload;
-  try {
-    payload = JSON.parse(text) as BackupPayload;
-  } catch {
-    throw new Error('This file is not a valid Famerang backup.');
-  }
-
-  if (!payload || typeof payload.version !== 'number' || !Array.isArray(payload.booklets)) {
-    throw new Error('This file is not a valid Famerang backup.');
-  }
-
-  await db.transaction(
-    'rw',
-    db.booklets,
-    db.pages,
-    db.stampPackages,
-    db.stamps,
-    db.pageStamps,
-    async () => {
-      if (mode === 'replace') {
-        await Promise.all([
-          db.booklets.clear(),
-          db.pages.clear(),
-          db.stampPackages.clear(),
-          db.stamps.clear(),
-          db.pageStamps.clear(),
-        ]);
-      }
-      await db.booklets.bulkPut(payload.booklets);
-      await db.pages.bulkPut(payload.pages);
-      // In "replace" mode the table was just cleared, so every package is
-      // new and the backup's own order (already encoded in sortOrder) is
-      // used as-is. In "merge" mode, packages already on this device keep
-      // their current position and only genuinely new ones are appended.
-      const stampPackages =
-        mode === 'replace'
-          ? withNormalizedPackageOrder(payload.stampPackages)
-          : await withPreservedPackageOrder(payload.stampPackages);
-      await db.stampPackages.bulkPut(stampPackages);
-      await db.stamps.bulkPut(payload.stamps);
-      await db.pageStamps.bulkPut(payload.pageStamps);
-    },
-  );
+function parseDataUrl(dataUrl: string): { mimeType: string; base64: string } | null {
+  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!match) return null;
+  return { mimeType: match[1], base64: match[2] };
 }
 
 /**
+ * Returns a file extension for common image MIME types.
+ */
+function extensionForMimeType(mimeType: string): string {
+  switch (mimeType) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    case 'image/gif':
+      return 'gif';
+    default:
+      return 'bin';
+  }
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+
+/**
  * Exports a single booklet -- its own record, pages, stamp placements, and
- * whichever stamps/packages those placements reference -- as a standalone
- * ZIP file, reusing the same JSON-in-zip shape as the full backup.
+ * whichever stamps/packages those placements reference -- as a v2 ZIP file.
+ *
+ * The ZIP contains:
+ *   - `manifest.json`  — booklet metadata, page records (no photoDataUrl),
+ *                        stamp package + stamp metadata
+ *   - `page-<n>.<ext>` — one binary image file per page that has a photo
+ *
+ * Using STORE compression for image entries since JPEGs/PNGs are already
+ * compressed; compressing them again wastes CPU for negligible gain.
  *
  * Marks just this booklet as backed-up as of now.
  */
@@ -186,19 +141,47 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
     ? await db.stampPackages.where('id').anyOf(packageIds).toArray()
     : [];
 
-  const payload: BookletBackupPayload = {
-    version: BACKUP_VERSION,
+  const zip = new JSZip();
+  const manifestPages: BookletManifestPage[] = [];
+
+  pages.forEach((page, index) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { photoDataUrl, ...pageWithoutPhoto } = page;
+    let photoFilename: string | undefined;
+
+    if (photoDataUrl) {
+      const parsed = parseDataUrl(photoDataUrl);
+      if (parsed) {
+        const ext = extensionForMimeType(parsed.mimeType);
+        photoFilename = `page-${index + 1}.${ext}`;
+        // Decode base64 → binary and store without re-compression
+        const binary = atob(parsed.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        zip.file(photoFilename, bytes, { compression: 'STORE' });
+      }
+    }
+
+    manifestPages.push({
+      ...pageWithoutPhoto,
+      ...(photoFilename ? { photoFilename } : {}),
+    });
+  });
+
+  const manifest: BookletManifest = {
+    version: 2,
     exportedAt: Date.now(),
     kind: 'booklet',
     booklet,
-    pages,
+    pages: manifestPages,
     pageStamps,
     stampPackages,
     stamps,
   };
 
-  const zip = new JSZip();
-  zip.file(BOOKLET_BACKUP_ENTRY, JSON.stringify(payload));
+  zip.file(BOOKLET_MANIFEST_ENTRY, JSON.stringify(manifest));
   const blob = await zip.generateAsync({ type: 'blob' });
 
   await markBookletsBackedUp([bookletId]);
@@ -206,11 +189,18 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
   return blob;
 }
 
+// ─── Restore ──────────────────────────────────────────────────────────────────
+
 const newId = () => crypto.randomUUID();
 
 /**
  * Restores a single booklet from a file produced by `exportBookletZip`,
  * overwriting the booklet identified by `targetBookletId`.
+ *
+ * Detects format automatically:
+ *   - v2 ZIP: contains `manifest.json`; page photos are individual zip entries.
+ *   - v1 ZIP (legacy): contains `famerang-booklet-backup.json`; page photos
+ *     are embedded as base64 data URLs in the JSON.
  *
  * This always replaces (never merges): the target booklet's existing pages
  * and page-stamp placements are deleted first, then the backup's booklet
@@ -226,10 +216,94 @@ const newId = () => crypto.randomUUID();
  * stealing pages away from the original booklet instead of copying them.
  */
 export async function restoreBookletZip(file: File, targetBookletId: string): Promise<Booklet> {
-  const text = await readJsonPayloadFromFile(file, BOOKLET_BACKUP_ENTRY);
-  let payload: BookletBackupPayload;
+  let zip: JSZip;
   try {
-    payload = JSON.parse(text) as BookletBackupPayload;
+    zip = await JSZip.loadAsync(file);
+  } catch {
+    throw new Error('This file is not a valid Famerang booklet backup.');
+  }
+
+  // ── Format detection ──────────────────────────────────────────────────────
+  const manifestEntry = zip.file(BOOKLET_MANIFEST_ENTRY);
+  const v1Entry = zip.file(BOOKLET_BACKUP_ENTRY_V1);
+
+  if (manifestEntry) {
+    return restoreV2(zip, manifestEntry, targetBookletId);
+  } else if (v1Entry) {
+    return restoreV1(v1Entry, targetBookletId);
+  } else {
+    throw new Error('This file is not a valid Famerang booklet backup.');
+  }
+}
+
+/** Restores a v2 booklet backup (manifest.json + image entries). */
+async function restoreV2(
+  zip: JSZip,
+  manifestEntry: JSZip.JSZipObject,
+  targetBookletId: string,
+): Promise<Booklet> {
+  let manifest: BookletManifest;
+  try {
+    manifest = JSON.parse(await manifestEntry.async('string')) as BookletManifest;
+  } catch {
+    throw new Error('This file is not a valid Famerang booklet backup.');
+  }
+
+  if (!manifest || manifest.version !== 2 || !manifest.booklet) {
+    throw new Error('This file is not a valid Famerang booklet backup.');
+  }
+
+  // Read each page's photo from its zip entry and reconstruct the data URL
+  const pagesWithPhotos: Page[] = await Promise.all(
+    (manifest.pages ?? []).map(async (manifestPage) => {
+      const { photoFilename, ...pageFields } = manifestPage;
+      if (!photoFilename) return pageFields as Page;
+
+      const imgEntry = zip.file(photoFilename);
+      if (!imgEntry) return pageFields as Page;
+
+      const bytes = await imgEntry.async('uint8array');
+      // Derive MIME type from the filename extension
+      const ext = photoFilename.split('.').pop()?.toLowerCase() ?? '';
+      const mimeMap: Record<string, string> = {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        gif: 'image/gif',
+      };
+      const mimeType = mimeMap[ext] ?? 'application/octet-stream';
+
+      // Convert Uint8Array → base64 in a way that handles large buffers
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      const photoDataUrl = `data:${mimeType};base64,${btoa(binary)}`;
+
+      return { ...pageFields, photoDataUrl } as Page;
+    }),
+  );
+
+  return applyRestoredBooklet(
+    manifest.booklet,
+    pagesWithPhotos,
+    manifest.pageStamps ?? [],
+    manifest.stampPackages ?? [],
+    manifest.stamps ?? [],
+    targetBookletId,
+  );
+}
+
+/** Restores a v1 booklet backup (single JSON with embedded base64 photos). */
+async function restoreV1(
+  entry: JSZip.JSZipObject,
+  targetBookletId: string,
+): Promise<Booklet> {
+  let payload: BookletBackupPayloadV1;
+  try {
+    payload = JSON.parse(await entry.async('string')) as BookletBackupPayloadV1;
   } catch {
     throw new Error('This file is not a valid Famerang booklet backup.');
   }
@@ -238,12 +312,35 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
     throw new Error('This file is not a valid Famerang booklet backup.');
   }
 
-  const restoredBooklet: Booklet = { ...payload.booklet, id: targetBookletId };
+  return applyRestoredBooklet(
+    payload.booklet,
+    payload.pages ?? [],
+    payload.pageStamps ?? [],
+    payload.stampPackages ?? [],
+    payload.stamps ?? [],
+    targetBookletId,
+  );
+}
+
+/**
+ * Shared logic: writes the restored booklet data into IndexedDB under
+ * `targetBookletId`, assigning fresh ids to pages and page-stamps to avoid
+ * colliding with still-live rows from the original booklet.
+ */
+async function applyRestoredBooklet(
+  booklet: Booklet,
+  pages: Page[],
+  pageStamps: PageStamp[],
+  stampPackages: StampPackage[],
+  stamps: Stamp[],
+  targetBookletId: string,
+): Promise<Booklet> {
+  const restoredBooklet: Booklet = { ...booklet, id: targetBookletId };
 
   // Fresh ids for every restored page, keyed by the page's original id so
   // page-stamps (which reference pages by id) can be remapped to match.
   const pageIdMap = new Map<string, string>();
-  const restoredPages = (payload.pages ?? []).map((p) => {
+  const restoredPages = pages.map((p) => {
     const freshId = newId();
     pageIdMap.set(p.id, freshId);
     return { ...p, id: freshId, bookletId: targetBookletId };
@@ -251,7 +348,7 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
 
   // Fresh ids for every restored page-stamp too, since its id could also
   // collide with a still-live row from the original booklet.
-  const restoredPageStamps = (payload.pageStamps ?? [])
+  const restoredPageStamps = pageStamps
     .filter((ps) => pageIdMap.has(ps.pageId))
     .map((ps) => ({ ...ps, id: newId(), pageId: pageIdMap.get(ps.pageId)! }));
 
@@ -272,11 +369,13 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
 
       await db.booklets.put(restoredBooklet);
       if (restoredPages.length) await db.pages.bulkPut(restoredPages);
-      if (payload.stampPackages?.length) {
-        const stampPackages = await withPreservedPackageOrder(payload.stampPackages);
-        await db.stampPackages.bulkPut(stampPackages);
+      if (stampPackages.length) {
+        const orderedPackages = await withPreservedPackageOrder(
+          withNormalizedPackageOrder(stampPackages),
+        );
+        await db.stampPackages.bulkPut(orderedPackages);
       }
-      if (payload.stamps?.length) await db.stamps.bulkPut(payload.stamps);
+      if (stamps.length) await db.stamps.bulkPut(stamps);
       if (restoredPageStamps.length) await db.pageStamps.bulkPut(restoredPageStamps);
     },
   );
@@ -285,6 +384,8 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
 
   return restoredBooklet;
 }
+
+// ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async function markBookletsBackedUp(bookletIds: string[]): Promise<void> {
   if (!bookletIds.length) return;
