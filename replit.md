@@ -118,7 +118,7 @@ Famerang lets you build square photo booklets on your phone or desktop. Each pag
 - **No backend** — deliberately out of scope. The workspace's `api-server` artifact is unused by Famerang.
 - **All storage on-device** — one Dexie/IndexedDB database. No sync, no cloud.
 - **Per-booklet backup only** — `backup.ts` exports `exportBookletZip` / `restoreBookletZip` for a single booklet and its referenced stamps. There is no whole-dataset backup; it was removed as dead code since no UI ever called it.
-- **Backup format v2** — booklet backup ZIPs contain a `manifest.json` plus one binary image file per page photo (`page-1.jpg` etc.), matching the stamp pack format. Old v1 ZIPs (single JSON with base64 photos) still import correctly. Roughly 25% smaller than v1.
+- **Backup format v3** — booklet backup ZIPs contain a `manifest.json` plus one binary image file per page photo (`page-1.jpg` etc.) and one binary PNG per stamp used in the booklet (`stamps/<name>.png`). No base64 is embedded in the JSON at all. Old v1 ZIPs (single JSON blob) and v2 ZIPs (page photos as binary but stamps still in JSON) still import correctly.
 - **Stamp pack format v2** — stamp pack ZIPs contain `manifest.json` plus individual `.png` binary entries. Directly editable in any zip tool.
 - **Per-booklet restore always overwrites** — there is no merge option. The target booklet is whichever one the user had open when they tapped Restore. A confirm dialog warns before proceeding. Restored pages/page-stamps get brand-new IDs (see Gotchas).
 - **Photo processing at upload time** — photos are center-cropped and downscaled to the booklet's canvas size immediately on upload, keeping on-device storage bounded regardless of source resolution.

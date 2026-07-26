@@ -16,6 +16,16 @@ Ideas
 
 Change Log
 
+2026-07-26 Sunday
+- revise stamp package file format
+- revise backup/restore file format
+- remove full backup code (single booklet backup only)
+- update replit.md for marketing/website
+
+2026-07-25 Saturday
+- stamp package creation with Gemini and SnagIt
+- farm animals, wild animals, birds, dogs
+
 2026-07-22 Wednesday
 - add stamp sheet PDF option
 - add seeded stamp packages (3)
