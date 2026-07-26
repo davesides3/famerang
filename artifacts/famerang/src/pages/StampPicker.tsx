@@ -65,7 +65,10 @@ export function StampPicker() {
 
   const handleStampTap = async (stampId: string) => {
     if (!pageId || stampLimitReached) return;
-    await placeStamp(pageId, stampId, 0.5, 0.5);
+    // Land the stamp at horizontal center, near the edge where the caption sits
+    // (or bottom if there's no caption) so it doesn't obscure the photo subject.
+    const yRatio = page?.textPlacement === 'above' ? 0.15 : 0.85;
+    await placeStamp(pageId, stampId, 0.5, yRatio);
     returnToEditor();
   };
 
