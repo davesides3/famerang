@@ -3,17 +3,15 @@ import { db } from './db';
 import type { Booklet, Page, PageStamp, Stamp, StampPackage } from './types';
 
 const BOOKLET_MANIFEST_ENTRY = 'manifest.json';
-// Legacy v1 entry name — kept only for backwards-compat detection
-const BOOKLET_BACKUP_ENTRY_V1 = 'famerang-booklet-backup.json';
 
 // ─── v3 manifest shape ───────────────────────────────────────────────────────
 //
-// v1: single famerang-booklet-backup.json with all photos and stamp images
-//     embedded as base64 data URLs.
-// v2: manifest.json + page-<n>.<ext> binary entries; stamp images still
-//     embedded as base64 in manifest.stamps (Stamp[]).
-// v3: manifest.json + page-<n>.<ext> binary entries + stamps/<name>.png
-//     binary entries; manifest.stamps contains metadata only (no pngDataUrl).
+// v1 (removed): single famerang-booklet-backup.json with all photos and stamp
+//               images embedded as base64 data URLs.
+// v2 (removed): manifest.json + page-<n>.<ext> binary entries; stamp images
+//               still embedded as base64 in manifest.stamps.
+// v3 (current): manifest.json + page-<n>.<ext> binary entries +
+//               stamps/<name>.png binary entries; no base64 anywhere.
 
 interface BookletManifestPage extends Omit<Page, 'photoDataUrl'> {
   /** Zip entry path for this page's photo, if it has one (e.g. `page-1.jpg`). */
@@ -35,30 +33,6 @@ interface BookletManifest {
   pageStamps: PageStamp[];
   stampPackages: StampPackage[];
   stamps: ManifestStamp[];
-}
-
-// ─── v2 shape — used only for import backwards compat ────────────────────────
-
-interface BookletManifestV2 {
-  version: 2;
-  booklet: Booklet;
-  pages: BookletManifestPage[];
-  pageStamps: PageStamp[];
-  stampPackages: StampPackage[];
-  stamps: Stamp[]; // v2 still had pngDataUrl in the manifest
-}
-
-// ─── v1 shape — used only for import backwards compat ────────────────────────
-
-interface BookletBackupPayloadV1 {
-  version: number;
-  exportedAt: number;
-  kind: 'booklet';
-  booklet: Booklet;
-  pages: Page[];
-  pageStamps: PageStamp[];
-  stampPackages: StampPackage[];
-  stamps: Stamp[];
 }
 
 // ─── Helper utilities ─────────────────────────────────────────────────────────
@@ -130,8 +104,7 @@ function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
 }
 
 /** Derives a unique `stamps/<filename>.png` path for each stamp.
- * Uses the stamp name (already a clean label); appends the first 8 chars of
- * the ID when two stamps share the same name. */
+ * Uses the stamp name; appends the first 8 chars of the ID on collision. */
 function stampZipPath(stamp: Stamp, usedPaths: Set<string>): string {
   const base = `stamps/${stamp.name}.png`;
   if (!usedPaths.has(base)) return base;
@@ -141,13 +114,11 @@ function stampZipPath(stamp: Stamp, usedPaths: Set<string>): string {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 /**
- * Exports a single booklet as a v3 ZIP file.
- *
- * The ZIP contains:
- *   - `manifest.json`        — booklet metadata, page records (no photoDataUrl),
- *                              stamp package metadata, stamp metadata (no pngDataUrl)
- *   - `page-<n>.<ext>`       — one binary image file per page that has a photo
- *   - `stamps/<name>.png`    — one binary PNG file per stamp used in the booklet
+ * Exports a single booklet as a v3 ZIP containing:
+ *   - `manifest.json`      — booklet metadata, page records (no photoDataUrl),
+ *                            stamp package metadata, stamp metadata (no pngDataUrl)
+ *   - `page-<n>.<ext>`     — one binary image file per page that has a photo
+ *   - `stamps/<name>.png`  — one binary PNG per stamp used in the booklet
  *
  * Image entries use STORE compression since JPEGs/PNGs are already compressed.
  */
@@ -224,15 +195,8 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
 const newId = () => crypto.randomUUID();
 
 /**
- * Restores a single booklet from a file produced by `exportBookletZip`,
+ * Restores a single booklet from a v3 ZIP produced by `exportBookletZip`,
  * overwriting the booklet identified by `targetBookletId`.
- *
- * Detects format automatically:
- *   - v3 ZIP: `manifest.json` with `stamps[].filename`; all images are
- *     individual zip entries.
- *   - v2 ZIP: `manifest.json` with stamps still embedded as base64.
- *   - v1 ZIP (legacy): `famerang-booklet-backup.json` with everything
- *     embedded as base64.
  *
  * Always replaces (never merges). Restored pages and page-stamps get fresh
  * IDs to avoid colliding with still-live rows from the original booklet.
@@ -246,27 +210,11 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
   }
 
   const manifestEntry = zip.file(BOOKLET_MANIFEST_ENTRY);
-  const v1Entry = zip.file(BOOKLET_BACKUP_ENTRY_V1);
+  if (!manifestEntry) throw new Error('This file is not a valid Famerang booklet backup.');
 
-  if (manifestEntry) {
-    return restoreFromManifest(zip, manifestEntry, targetBookletId);
-  } else if (v1Entry) {
-    return restoreV1(v1Entry, targetBookletId);
-  } else {
-    throw new Error('This file is not a valid Famerang booklet backup.');
-  }
-}
-
-/** Restores from a manifest.json — handles both v2 (stamps in JSON) and
- *  v3 (stamps as binary zip entries). */
-async function restoreFromManifest(
-  zip: JSZip,
-  manifestEntry: JSZip.JSZipObject,
-  targetBookletId: string,
-): Promise<Booklet> {
-  let manifest: BookletManifest | BookletManifestV2;
+  let manifest: BookletManifest;
   try {
-    manifest = JSON.parse(await manifestEntry.async('string')) as BookletManifest | BookletManifestV2;
+    manifest = JSON.parse(await manifestEntry.async('string')) as BookletManifest;
   } catch {
     throw new Error('This file is not a valid Famerang booklet backup.');
   }
@@ -275,7 +223,7 @@ async function restoreFromManifest(
     throw new Error('This file is not a valid Famerang booklet backup.');
   }
 
-  // ── Page photos ─────────────────────────────────────────────────────────
+  // ── Page photos ────────────────────────────────────────────────────────────
   const pagesWithPhotos: Page[] = await Promise.all(
     (manifest.pages ?? []).map(async (manifestPage) => {
       const { photoFilename, ...pageFields } = manifestPage;
@@ -288,32 +236,19 @@ async function restoreFromManifest(
         jpg: 'image/jpeg', jpeg: 'image/jpeg',
         png: 'image/png', webp: 'image/webp', gif: 'image/gif',
       };
-      const photoDataUrl = bytesToDataUrl(bytes, mimeMap[ext] ?? 'application/octet-stream');
-      return { ...pageFields, photoDataUrl } as Page;
+      return { ...pageFields, photoDataUrl: bytesToDataUrl(bytes, mimeMap[ext] ?? 'application/octet-stream') } as Page;
     }),
   );
 
-  // ── Stamps ───────────────────────────────────────────────────────────────
-  //
-  // v3: stamps are ManifestStamp (no pngDataUrl, has filename) → read from zip.
-  // v2: stamps are Stamp (has pngDataUrl) → use directly.
-  let stamps: Stamp[];
-  const rawStamps = manifest.stamps ?? [];
-
-  if (manifest.version === 3) {
-    // v3: read each stamp image from its zip entry
-    stamps = await Promise.all(
-      (rawStamps as ManifestStamp[]).map(async (ms) => {
-        const entry = zip.file(ms.filename);
-        if (!entry) throw new Error(`Backup is missing stamp image: ${ms.filename}`);
-        const bytes = await entry.async('uint8array');
-        return { ...ms, pngDataUrl: bytesToDataUrl(bytes, 'image/png') };
-      }),
-    );
-  } else {
-    // v2: stamps already have pngDataUrl embedded
-    stamps = rawStamps as Stamp[];
-  }
+  // ── Stamps ─────────────────────────────────────────────────────────────────
+  const stamps: Stamp[] = await Promise.all(
+    (manifest.stamps ?? []).map(async (ms) => {
+      const entry = zip.file(ms.filename);
+      if (!entry) throw new Error(`Backup is missing stamp image: ${ms.filename}`);
+      const bytes = await entry.async('uint8array');
+      return { ...ms, pngDataUrl: bytesToDataUrl(bytes, 'image/png') };
+    }),
+  );
 
   return applyRestoredBooklet(
     manifest.booklet,
@@ -321,32 +256,6 @@ async function restoreFromManifest(
     manifest.pageStamps ?? [],
     manifest.stampPackages ?? [],
     stamps,
-    targetBookletId,
-  );
-}
-
-/** Restores a v1 booklet backup (single JSON with everything as base64). */
-async function restoreV1(
-  entry: JSZip.JSZipObject,
-  targetBookletId: string,
-): Promise<Booklet> {
-  let payload: BookletBackupPayloadV1;
-  try {
-    payload = JSON.parse(await entry.async('string')) as BookletBackupPayloadV1;
-  } catch {
-    throw new Error('This file is not a valid Famerang booklet backup.');
-  }
-
-  if (!payload?.booklet) {
-    throw new Error('This file is not a valid Famerang booklet backup.');
-  }
-
-  return applyRestoredBooklet(
-    payload.booklet,
-    payload.pages ?? [],
-    payload.pageStamps ?? [],
-    payload.stampPackages ?? [],
-    payload.stamps ?? [],
     targetBookletId,
   );
 }

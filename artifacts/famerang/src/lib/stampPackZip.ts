@@ -2,15 +2,14 @@ import JSZip from 'jszip';
 import { db } from './db';
 import type { Stamp, StampPackage } from './types';
 
-// ─── Format constants ─────────────────────────────────────────────────────────
+// ─── Format ───────────────────────────────────────────────────────────────────
+//
+// v1 (removed): single `famerang-stamp-pack.json` with pngDataUrl fields
+//               embedded in each stamp object.
+// v2 (current): `manifest.json` + one `<stamp-name>.png` binary entry per stamp.
 
-// v1 (legacy): a single `famerang-stamp-pack.json` entry with pngDataUrl
-//              fields embedded in each stamp object.
-// v2 (current): a `manifest.json` entry with metadata only, plus one
-//              `<stamp-name>.png` binary entry per stamp.
 const STAMP_PACK_VERSION = 2;
 const MANIFEST_ENTRY = 'manifest.json';
-const LEGACY_ENTRY = 'famerang-stamp-pack.json';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,7 +22,6 @@ interface ManifestStamp {
   filename: string;
 }
 
-/** The v2 manifest.json shape. */
 interface StampPackManifestV2 {
   version: 2;
   exportedAt: number;
@@ -32,20 +30,11 @@ interface StampPackManifestV2 {
   stamps: ManifestStamp[];
 }
 
-/** Legacy v1 payload shape (single JSON with base64 images). */
-interface StampPackPayloadV1 {
-  version: 1 | number; // older exports may have version: 1 or be unversioned
-  exportedAt: number;
-  kind: 'stampPack';
-  package: StampPackage;
-  stamps: Stamp[]; // stamps have pngDataUrl
-}
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const newId = () => crypto.randomUUID();
 
-/** Derive a unique filename for a stamp within the zip.
+/** Derives a unique filename for a stamp within the zip.
  * Uses the stamp name (already a clean label like "dinosaur-1") plus `.png`.
  * Appends the first 8 chars of the stamp id when there is a name collision. */
 function stampFilename(stamp: Stamp, usedFilenames: Set<string>): string {
@@ -54,7 +43,7 @@ function stampFilename(stamp: Stamp, usedFilenames: Set<string>): string {
   return `${stamp.name}-${stamp.id.slice(0, 8)}.png`;
 }
 
-/** Convert a base64 data URL to a Uint8Array of raw bytes. */
+/** Converts a base64 data URL to a Uint8Array of raw bytes. */
 function dataUrlToBytes(dataUrl: string): Uint8Array {
   const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
   const bin = atob(b64);
@@ -63,7 +52,7 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-/** Convert a Uint8Array (raw PNG bytes) to a data URL. */
+/** Converts a Uint8Array (raw PNG bytes) to a data URL. */
 function bytesToDataUrl(bytes: Uint8Array): string {
   let bin = '';
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -73,11 +62,11 @@ function bytesToDataUrl(bytes: Uint8Array): string {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 /**
- * Exports a stamp pack as a ZIP containing:
- *   - `manifest.json`   — package metadata + stamp list (no image data)
- *   - `<name>.png`      — one raw PNG binary entry per stamp
+ * Exports a stamp pack as a v2 ZIP containing:
+ *   - `manifest.json`  — package metadata + stamp list (no image data)
+ *   - `<name>.png`     — one raw PNG binary entry per stamp
  *
- * PNG entries use STORE compression (no-op) since PNG is already compressed.
+ * PNG entries use STORE compression since PNG is already compressed.
  */
 export async function exportStampPackageZip(packageId: string): Promise<Blob> {
   const pkg = await db.stampPackages.get(packageId);
@@ -115,100 +104,23 @@ export type StampPackImportTarget =
   | { mode: 'merge'; packageId: string };
 
 /**
- * Imports a stamp pack ZIP, supporting both:
- *   - **v2** (current): `manifest.json` + individual `.png` entries
- *   - **v1** (legacy): a single `famerang-stamp-pack.json` with base64 images
- *
- * Also accepts a bare `.json` file (v1 format exported without the zip wrapper,
- * e.g. auto-extracted by an OS on download).
- *
+ * Imports a v2 stamp pack ZIP (`manifest.json` + individual `.png` entries).
  * Stamps always get fresh IDs on import to avoid collisions with existing data.
  */
 export async function importStampPackageZip(
   file: File,
   target: StampPackImportTarget,
 ): Promise<StampPackage> {
-  // ── Detect format ────────────────────────────────────────────────────────
-
-  const looksLikeJson =
-    file.name.toLowerCase().endsWith('.json') || file.type === 'application/json';
-
-  let stamps: Stamp[];
-  let packageMeta: StampPackage;
-
-  if (looksLikeJson) {
-    // Bare JSON file — must be v1 format.
-    const text = await file.text();
-    ({ stamps, packageMeta } = await parseV1Json(text));
-  } else {
-    // Attempt to load as zip.
-    let zip: JSZip;
-    try {
-      zip = await JSZip.loadAsync(file);
-    } catch {
-      // Last-ditch: might be a JSON file with a non-JSON extension.
-      const text = await file.text();
-      if (text.trim().startsWith('{')) {
-        ({ stamps, packageMeta } = await parseV1Json(text));
-      } else {
-        throw new Error('This file is not a valid Famerang stamp pack.');
-      }
-    }
-
-    const manifestEntry = zip!.file(MANIFEST_ENTRY);
-    if (manifestEntry) {
-      ({ stamps, packageMeta } = await parseV2Zip(zip!, manifestEntry));
-    } else {
-      // Fall back to v1 (legacy single-JSON zip).
-      const legacyEntry = zip!.file(LEGACY_ENTRY) ?? zip!.file(/\.json$/i)[0];
-      if (!legacyEntry) throw new Error('This file is not a valid Famerang stamp pack.');
-      ({ stamps, packageMeta } = await parseV1Json(await legacyEntry.async('string')));
-    }
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(file);
+  } catch {
+    throw new Error('This file is not a valid Famerang stamp pack.');
   }
 
-  // ── Write to DB ──────────────────────────────────────────────────────────
+  const manifestEntry = zip.file(MANIFEST_ENTRY);
+  if (!manifestEntry) throw new Error('This file is not a valid Famerang stamp pack.');
 
-  return db.transaction('rw', db.stampPackages, db.stamps, async () => {
-    let targetPackage: StampPackage;
-
-    if (target.mode === 'merge') {
-      const existing = await db.stampPackages.get(target.packageId);
-      if (!existing) throw new Error('Target stamp pack no longer exists.');
-      targetPackage = existing;
-    } else {
-      const existing = await db.stampPackages.toArray();
-      const maxOrder = existing.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
-      targetPackage = {
-        id: newId(),
-        name: packageMeta.name,
-        createdAt: Date.now(),
-        sortOrder: maxOrder + 1,
-        // Carry over optional credit fields so packs shipped with artist info
-        // import faithfully.
-        ...(packageMeta.artist !== undefined && { artist: packageMeta.artist }),
-        ...(packageMeta.creditsUrl !== undefined && { creditsUrl: packageMeta.creditsUrl }),
-        ...(packageMeta.creditsLocked !== undefined && { creditsLocked: packageMeta.creditsLocked }),
-      };
-      await db.stampPackages.add(targetPackage);
-    }
-
-    const importedStamps: Stamp[] = stamps.map((s) => ({
-      ...s,
-      id: newId(),
-      packageId: targetPackage.id,
-    }));
-    if (importedStamps.length) await db.stamps.bulkAdd(importedStamps);
-
-    return targetPackage;
-  });
-}
-
-// ─── Format parsers ───────────────────────────────────────────────────────────
-
-async function parseV2Zip(
-  zip: JSZip,
-  manifestEntry: JSZip.JSZipObject,
-): Promise<{ stamps: Stamp[]; packageMeta: StampPackage }> {
   let manifest: StampPackManifestV2;
   try {
     manifest = JSON.parse(await manifestEntry.async('string')) as StampPackManifestV2;
@@ -235,22 +147,35 @@ async function parseV2Zip(
     }),
   );
 
-  return { stamps, packageMeta: manifest.package };
-}
+  return db.transaction('rw', db.stampPackages, db.stamps, async () => {
+    let targetPackage: StampPackage;
 
-async function parseV1Json(
-  text: string,
-): Promise<{ stamps: Stamp[]; packageMeta: StampPackage }> {
-  let payload: StampPackPayloadV1;
-  try {
-    payload = JSON.parse(text) as StampPackPayloadV1;
-  } catch {
-    throw new Error('This file is not a valid Famerang stamp pack.');
-  }
+    if (target.mode === 'merge') {
+      const existing = await db.stampPackages.get(target.packageId);
+      if (!existing) throw new Error('Target stamp pack no longer exists.');
+      targetPackage = existing;
+    } else {
+      const existing = await db.stampPackages.toArray();
+      const maxOrder = existing.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
+      targetPackage = {
+        id: newId(),
+        name: manifest.package.name,
+        createdAt: Date.now(),
+        sortOrder: maxOrder + 1,
+        ...(manifest.package.artist !== undefined && { artist: manifest.package.artist }),
+        ...(manifest.package.creditsUrl !== undefined && { creditsUrl: manifest.package.creditsUrl }),
+        ...(manifest.package.creditsLocked !== undefined && { creditsLocked: manifest.package.creditsLocked }),
+      };
+      await db.stampPackages.add(targetPackage);
+    }
 
-  if (!payload?.package || !Array.isArray(payload.stamps)) {
-    throw new Error('This file is not a valid Famerang stamp pack.');
-  }
+    const importedStamps: Stamp[] = stamps.map((s) => ({
+      ...s,
+      id: newId(),
+      packageId: targetPackage.id,
+    }));
+    if (importedStamps.length) await db.stamps.bulkAdd(importedStamps);
 
-  return { stamps: payload.stamps, packageMeta: payload.package };
+    return targetPackage;
+  });
 }
