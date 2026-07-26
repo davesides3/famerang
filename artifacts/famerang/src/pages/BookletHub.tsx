@@ -25,8 +25,8 @@ import { generateDraftPdf, isLargeDraftPdf, estimateDraftPdfBytes } from '@/lib/
 import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhotoExportBytes } from '@/lib/photoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
-import { TRIM_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
-import type { PageWithStamps } from '@/lib/types';
+import { TRIM_SIZES, FONT_FAMILY_OPTIONS, getTrimSize } from '@/lib/types';
+import type { PageWithStamps, TrimSizeKey } from '@/lib/types';
 import { PagePreview } from '@/pages/PagePreview';
 import { cn, formatEstimatedSize } from '@/lib/utils';
 import famerangLogo from '@/assets/famerang-logo.png';
@@ -88,6 +88,12 @@ export function BookletHub() {
   // "Send Anyway" confirms and proceeds.
   const [confirmLargePdf, setConfirmLargePdf] = useState(false);
   const [confirmLargePhotos, setConfirmLargePhotos] = useState(false);
+
+  // Changing trim size when pages already have photos may distort those
+  // photos (they were cropped for the old aspect ratio). If the new size
+  // has a different aspect ratio family, hold the change here and show a
+  // one-tap confirmation before applying it.
+  const [pendingTrimSizeKey, setPendingTrimSizeKey] = useState<TrimSizeKey | null>(null);
 
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
@@ -153,7 +159,27 @@ export function BookletHub() {
 
   const openSettings = () => {
     setEditTitle(booklet.title);
+    setPendingTrimSizeKey(null);
     setIsSettingsOpen(true);
+  };
+
+  /** Called when the user picks a new trim size. If the new size has a
+   *  different aspect ratio family (square ↔ portrait) AND the booklet already
+   *  has pages with photos, we hold the change and show a warning. Otherwise
+   *  we apply it immediately. */
+  const handleTrimSizeChange = (newKey: TrimSizeKey) => {
+    if (newKey === booklet.canvasSize) return;
+    const isSquare = (key: TrimSizeKey) => {
+      const t = getTrimSize(key);
+      return t.widthPx === t.heightPx;
+    };
+    const aspectFamilyChanges = isSquare(booklet.canvasSize) !== isSquare(newKey);
+    const hasPhotos = pages.some((p) => p.photoDataUrl !== null);
+    if (aspectFamilyChanges && hasPhotos) {
+      setPendingTrimSizeKey(newKey);
+    } else {
+      updateBooklet(booklet.id, { canvasSize: newKey });
+    }
   };
 
   const handleExportBooklet = async () => {
@@ -416,8 +442,8 @@ export function BookletHub() {
             <div className="space-y-2">
               <label className="text-sm font-bold text-muted-foreground block">Trim Size</label>
               <select
-                value={booklet.canvasSize}
-                onChange={(e) => updateBooklet(booklet.id, { canvasSize: e.target.value as import('@/lib/types').TrimSizeKey })}
+                value={pendingTrimSizeKey ?? booklet.canvasSize}
+                onChange={(e) => handleTrimSizeChange(e.target.value as TrimSizeKey)}
                 className="w-full bg-background text-foreground px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               >
                 {TRIM_SIZES.map((s) => (
@@ -426,6 +452,36 @@ export function BookletHub() {
                   </option>
                 ))}
               </select>
+
+              {pendingTrimSizeKey && (
+                <div className="flex flex-col gap-2 rounded-xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="font-bold text-amber-800 dark:text-amber-300">
+                      Existing photos were cropped for the current size and may look stretched in the new format. You'll need to re-upload them to fit correctly.
+                    </p>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setPendingTrimSizeKey(null)}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-border bg-background hover:bg-muted transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateBooklet(booklet.id, { canvasSize: pendingTrimSizeKey });
+                        setPendingTrimSizeKey(null);
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                    >
+                      Change Anyway
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

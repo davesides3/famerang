@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { db } from './db';
-import type { Booklet, Page, PageStamp, Stamp, StampPackage, TrimSizeKey } from './types';
+import type { Booklet, Page, PageStamp, Stamp, StampPackage } from './types';
 
 const BOOKLET_MANIFEST_ENTRY = 'manifest.json';
 
@@ -221,14 +221,6 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
 
   if (!manifest?.booklet) {
     throw new Error('This file is not a valid Famerang booklet backup.');
-  }
-
-  // Pre-v5 backups stored canvasSize as a number (2100/2400/2700). Coerce to
-  // the current string key format so restored booklets open correctly.
-  const numericToKey: Record<number, TrimSizeKey> = { 2100: '7x7', 2400: '8x8', 2700: '9x9' };
-  if (typeof (manifest.booklet.canvasSize as unknown) === 'number') {
-    manifest.booklet.canvasSize =
-      numericToKey[manifest.booklet.canvasSize as unknown as number] ?? '7x7';
   }
 
   // ── Page photos ────────────────────────────────────────────────────────────
