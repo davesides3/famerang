@@ -11,15 +11,15 @@ import type { Stamp, StampPackage } from './types';
 // Any device whose stored seed version is lower than this will re-seed on
 // the next app launch.  User-created packs are never touched.
 //
-const SEED_VERSION = 1;
+const SEED_VERSION = 2;
 const SEED_VERSION_KEY = 'famerang-seed-v';
 
 // ─── Pack manifest ────────────────────────────────────────────────────────────
 //
 // Each entry:
 //   id    – stable UUID that identifies this pack in the DB forever.
-//           Must match the `id` field inside the corresponding zip's JSON so
-//           that re-seeds update the correct record.
+//           Must match the `id` field inside the corresponding zip's manifest.json
+//           so that re-seeds update the correct record.
 //   asset – path under /public that Vite serves at build time.
 //
 const DEFAULT_PACKS: Array<{ id: string; asset: string }> = [
@@ -37,24 +37,73 @@ const DEFAULT_PACKS: Array<{ id: string; asset: string }> = [
   },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface StampPackPayload {
-  version: number;
+interface ManifestStamp {
+  id: string;
+  name: string;
+  contentHash: string;
+  filename: string;
+}
+
+interface StampPackManifestV2 {
+  version: 2;
+  package: StampPackage;
+  stamps: ManifestStamp[];
+}
+
+/** Reconstructed payload after parsing either format. */
+interface SeedPayload {
   package: StampPackage;
   stamps: Stamp[];
 }
 
-async function fetchPayload(assetPath: string): Promise<StampPackPayload> {
-  // BASE_URL is injected by Vite and always ends with '/'.
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Convert a Uint8Array (raw PNG bytes) to a data URL. */
+function bytesToDataUrl(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return `data:image/png;base64,${btoa(bin)}`;
+}
+
+async function fetchPayload(assetPath: string): Promise<SeedPayload> {
   const base = (import.meta.env.BASE_URL ?? '/').replace(/\/$/, '');
   const url = `${base}/${assetPath}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
   const zip = await JSZip.loadAsync(await res.arrayBuffer());
-  const entry = zip.file('famerang-stamp-pack.json');
-  if (!entry) throw new Error(`${assetPath}: missing famerang-stamp-pack.json`);
-  return JSON.parse(await entry.async('string')) as StampPackPayload;
+
+  // ── v2 format: manifest.json + individual PNG entries ──────────────────
+  const manifestEntry = zip.file('manifest.json');
+  if (manifestEntry) {
+    const manifest = JSON.parse(await manifestEntry.async('string')) as StampPackManifestV2;
+    const stamps: Stamp[] = await Promise.all(
+      manifest.stamps.map(async (ms) => {
+        const entry = zip.file(ms.filename);
+        if (!entry) throw new Error(`${assetPath}: missing image entry "${ms.filename}"`);
+        const bytes = await entry.async('uint8array');
+        return {
+          id: ms.id,
+          packageId: manifest.package.id,
+          name: ms.name,
+          contentHash: ms.contentHash,
+          pngDataUrl: bytesToDataUrl(bytes),
+        };
+      }),
+    );
+    return { package: manifest.package, stamps };
+  }
+
+  // ── v1 legacy format: single famerang-stamp-pack.json with base64 ──────
+  const legacyEntry =
+    zip.file('famerang-stamp-pack.json') ?? zip.file(/\.json$/i)[0] ?? null;
+  if (!legacyEntry) throw new Error(`${assetPath}: unrecognised zip format`);
+  const payload = JSON.parse(await legacyEntry.async('string')) as {
+    package: StampPackage;
+    stamps: Stamp[];
+  };
+  return { package: payload.package, stamps: payload.stamps };
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
