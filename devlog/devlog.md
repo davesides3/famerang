@@ -21,6 +21,8 @@ Change Log
 - revise backup/restore file format
 - remove full backup code (single booklet backup only)
 - update replit.md for marketing/website
+- add 7.5"x10" for home printing
+- tweaks around stamp placement
 
 2026-07-25 Saturday
 - stamp package creation with Gemini and SnagIt
