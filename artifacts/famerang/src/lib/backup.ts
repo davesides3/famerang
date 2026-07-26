@@ -182,7 +182,7 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
     stamps: manifestStamps,
   };
 
-  zip.file(BOOKLET_MANIFEST_ENTRY, JSON.stringify(manifest));
+  zip.file(BOOKLET_MANIFEST_ENTRY, JSON.stringify(manifest, null, 2));
   const blob = await zip.generateAsync({ type: 'blob' });
 
   await markBookletsBackedUp([bookletId]);
