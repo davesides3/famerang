@@ -53,9 +53,10 @@ export function PageEditor() {
     setLocation(`/booklet/${bookletId}/page/${pageId}/stamps`);
   };
 
-  const handleCanvasTap = (xRatio: number, yRatio: number) => {
-    // We could use this to place a selected stamp, or just ignore for now.
-    // The spec said "tapping a stamp... place it at sensible default (center)... user drag it".
+  const handleCanvasTap = (_xRatio: number, _yRatio: number) => {
+    // Tapping the canvas background opens the photo picker so the user can
+    // add or replace the photo without hunting for the toolbar button.
+    fileInputRef.current?.click();
   };
 
   const togglePlacement = () => {
