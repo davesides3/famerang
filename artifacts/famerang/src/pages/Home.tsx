@@ -4,7 +4,7 @@ import { BookPlus, Trash2, CalendarDays, Layers, AlertTriangle } from 'lucide-re
 import { useBooklets, createBooklet, deleteBooklet } from '@/lib/hooks';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { PaperButton } from '@/components/ui/PaperButton';
-import { CANVAS_SIZES } from '@/lib/types';
+import { getTrimSize } from '@/lib/types';
 import { format } from 'date-fns';
 import famerangLogo from '@/assets/famerang-logo.png';
 import { useHeaderNavHidden } from '@/components/layout/AppLayout';
@@ -103,7 +103,7 @@ export function Home() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Layers className="w-4 h-4" />
-                    {CANVAS_SIZES.find(s => s.value === booklet.canvasSize)?.label || 'Square'}
+                    {getTrimSize(booklet.canvasSize).label}
                   </div>
                 </div>
 

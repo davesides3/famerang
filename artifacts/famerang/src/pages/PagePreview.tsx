@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { renderPageToCanvas } from '@/lib/compositing';
 import { useHeaderClose } from '@/components/layout/AppLayout';
+import { getTrimSize } from '@/lib/types';
 import type { Booklet, PageWithStamps } from '@/lib/types';
 
 const PREVIEW_RENDER_SIZE = 1000;
@@ -37,7 +38,11 @@ export function PagePreview({ booklet, pages, initialIndex, onClose }: Props) {
     }
     let cancelled = false;
     setIsRendering(true);
-    renderPageToCanvas(page, booklet, PREVIEW_RENDER_SIZE)
+    const trimSize = getTrimSize(booklet.canvasSize);
+    const aspect = trimSize.widthPx / trimSize.heightPx;
+    const pw = aspect >= 1 ? PREVIEW_RENDER_SIZE : Math.round(PREVIEW_RENDER_SIZE * aspect);
+    const ph = aspect >= 1 ? Math.round(PREVIEW_RENDER_SIZE / aspect) : PREVIEW_RENDER_SIZE;
+    renderPageToCanvas(page, booklet, pw, ph)
       .then((canvas) => {
         if (cancelled) return;
         const dataUrl = canvas.toDataURL('image/jpeg', 0.85);

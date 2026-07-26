@@ -1,3 +1,4 @@
+import { getTrimSize } from './types';
 import type { Booklet, PageStampWithStamp, PageWithStamps } from './types';
 
 /** Wraps `text` to fit within `maxWidth` on the given canvas context,
@@ -83,18 +84,27 @@ async function ensureFontLoaded(fontFamily: string, fontSizePx: number): Promise
  * through this function so what the user sees while editing is exactly
  * what gets exported.
  *
- * @param renderSize Pixel size of the square canvas to render at. Pass the
- *   booklet's full `canvasSize` for export, or a smaller size for fast
- *   on-screen previews.
+ * For square booklets `renderWidth === renderHeight`; for portrait booklets
+ * (e.g. 7.5"×10") they differ. Both default to the booklet's full pixel
+ * dimensions. Pass smaller values for fast on-screen previews -- the
+ * function scales all measurements proportionally.
+ *
+ * @param renderWidth  Pixel width of the canvas to render at.
+ * @param renderHeight Pixel height of the canvas to render at.
  */
 export async function renderPageToCanvas(
   page: PageWithStamps,
   booklet: Booklet,
-  renderSize: number = booklet.canvasSize,
+  renderWidth?: number,
+  renderHeight?: number,
 ): Promise<HTMLCanvasElement> {
+  const trimSize = getTrimSize(booklet.canvasSize);
+  const rw = renderWidth  ?? trimSize.widthPx;
+  const rh = renderHeight ?? trimSize.heightPx;
+
   const canvas = document.createElement('canvas');
-  canvas.width = renderSize;
-  canvas.height = renderSize;
+  canvas.width  = rw;
+  canvas.height = rh;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D context unavailable');
 
@@ -104,11 +114,14 @@ export async function renderPageToCanvas(
   // correspondingly always dark (#1a1a1a below) so it stays legible on the
   // white background regardless of the app's current colour scheme.
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, renderSize, renderSize);
+  ctx.fillRect(0, 0, rw, rh);
 
-  const scale = renderSize / booklet.canvasSize;
+  // Scale factor is based on width so font size and margins stay
+  // proportional to the page's horizontal dimension for both square and
+  // portrait layouts.
+  const scale = rw / trimSize.widthPx;
   const fontSize = booklet.fontSize * scale;
-  const margin = renderSize * 0.06;
+  const margin = rw * 0.06;
   const lineHeight = fontSize * 1.25;
 
   await ensureFontLoaded(booklet.fontFamily, fontSize);
@@ -117,32 +130,33 @@ export async function renderPageToCanvas(
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#1a1a1a';
   const textLines = page.textContent
-    ? wrapText(ctx, page.textContent, renderSize - margin * 2)
+    ? wrapText(ctx, page.textContent, rw - margin * 2)
     : [];
   const textBlockHeight = textLines.length
     ? textLines.length * lineHeight + margin
     : 0;
 
-  const photoBoxSize = renderSize - margin * 2 - textBlockHeight;
+  // Photo box fills the full available width and the remaining height after
+  // reserving space for the text block and margins. For square booklets
+  // with no caption, photoBoxWidth === photoBoxHeight (square box). For
+  // portrait booklets or pages with captions, the box is rectangular -- the
+  // stored photo is already cropped to this aspect ratio by imaging.ts.
+  const photoBoxWidth  = rw - margin * 2;
+  const photoBoxHeight = rh - margin * 2 - textBlockHeight;
   const photoBoxTop =
     page.textPlacement === 'above'
       ? margin + textBlockHeight
       : margin;
-  const photoBoxLeft = (renderSize - photoBoxSize) / 2;
+  const photoBoxLeft = margin;
 
-  // Photo (center-cropped square, already downscaled on upload)
+  // Photo (center-cropped to the booklet's aspect ratio, already downscaled
+  // on upload -- draw it to fill the photo box exactly)
   if (page.photoDataUrl) {
     const img = await loadImageCached(imageCache, page.photoDataUrl);
-    ctx.drawImage(
-      img,
-      photoBoxLeft,
-      photoBoxTop,
-      photoBoxSize,
-      photoBoxSize,
-    );
+    ctx.drawImage(img, photoBoxLeft, photoBoxTop, photoBoxWidth, photoBoxHeight);
   } else {
     ctx.fillStyle = '#e8e4dc';
-    ctx.fillRect(photoBoxLeft, photoBoxTop, photoBoxSize, photoBoxSize);
+    ctx.fillRect(photoBoxLeft, photoBoxTop, photoBoxWidth, photoBoxHeight);
   }
 
   // Caption text
@@ -150,17 +164,19 @@ export async function renderPageToCanvas(
     const textTop =
       page.textPlacement === 'above'
         ? margin
-        : photoBoxTop + photoBoxSize + margin * 0.5;
+        : photoBoxTop + photoBoxHeight + margin * 0.5;
     ctx.font = `${fontSize}px "${booklet.fontFamily}", sans-serif`;
     ctx.fillStyle = '#1a1a1a';
     ctx.textAlign = 'center';
     textLines.forEach((line, i) => {
-      ctx.fillText(line, renderSize / 2, textTop + i * lineHeight);
+      ctx.fillText(line, rw / 2, textTop + i * lineHeight);
     });
     ctx.textAlign = 'left';
   }
 
   // Stamps, drawn in stacking order, centered on their relative position.
+  // xRatio and yRatio are fractions of the page width/height respectively,
+  // so they work correctly for both square and portrait pages.
   const sortedStamps = [...page.stamps].sort(
     (a, b) => a.stackOrder - b.stackOrder,
   );
@@ -169,9 +185,11 @@ export async function renderPageToCanvas(
       imageCache,
       placement.stamp.pngDataUrl,
     );
-    const stampSize = renderSize * 0.22;
-    const cx = placement.xRatio * renderSize;
-    const cy = placement.yRatio * renderSize;
+    // Use page width as the reference for stamp sizing so a stamp appears
+    // the same visual weight regardless of portrait vs. square layout.
+    const stampSize = rw * 0.22;
+    const cx = placement.xRatio * rw;
+    const cy = placement.yRatio * rh;
     const aspect = stampImg.naturalWidth / stampImg.naturalHeight || 1;
     const w = aspect >= 1 ? stampSize : stampSize * aspect;
     const h = aspect >= 1 ? stampSize / aspect : stampSize;

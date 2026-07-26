@@ -3,15 +3,15 @@ import { db } from './db';
 import { downscaleImageFileToDataUrl, hashFile, readFileAsDataUrl } from './imaging';
 import type {
   Booklet,
-  CanvasSize,
   Page,
   PageStampWithStamp,
   PageWithStamps,
   Stamp,
   StampPackage,
   TextPlacement,
+  TrimSizeKey,
 } from './types';
-import { DEFAULT_CANVAS_SIZE, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE } from './types';
+import { DEFAULT_TRIM_SIZE_KEY, DEFAULT_FONT_FAMILY, DEFAULT_FONT_SIZE, getTrimSize } from './types';
 
 const newId = () => crypto.randomUUID();
 
@@ -46,13 +46,13 @@ export function useBooklet(id: string | undefined): Booklet | undefined {
 
 export async function createBooklet(input: {
   title: string;
-  canvasSize?: CanvasSize;
+  canvasSize?: TrimSizeKey;
 }): Promise<Booklet> {
   const now = Date.now();
   const booklet: Booklet = {
     id: newId(),
     title: input.title,
-    canvasSize: input.canvasSize ?? DEFAULT_CANVAS_SIZE,
+    canvasSize: input.canvasSize ?? DEFAULT_TRIM_SIZE_KEY,
     fontFamily: DEFAULT_FONT_FAMILY,
     fontSize: DEFAULT_FONT_SIZE,
     createdAt: now,
@@ -69,6 +69,7 @@ export async function updateBooklet(
 ): Promise<void> {
   await db.booklets.update(id, { ...patch, updatedAt: Date.now() });
 }
+
 
 export async function touchBooklet(id: string): Promise<void> {
   await db.booklets.update(id, { updatedAt: Date.now() });
@@ -164,11 +165,11 @@ export async function createPage(bookletId: string): Promise<Page> {
   return page;
 }
 
-export async function setPagePhoto(pageId: string, file: File, canvasSize: number) {
-  const dataUrl = await downscaleImageFileToDataUrl(file, canvasSize);
+export async function setPagePhoto(pageId: string, file: File, booklet: Booklet) {
+  const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
+  const dataUrl = await downscaleImageFileToDataUrl(file, widthPx, heightPx);
   await db.pages.update(pageId, { photoDataUrl: dataUrl });
-  const page = await db.pages.get(pageId);
-  if (page) await touchBooklet(page.bookletId);
+  await touchBooklet(booklet.id);
 }
 
 export async function updatePageText(

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, removePageStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
+import { getTrimSize } from '@/lib/types';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -38,7 +39,7 @@ export function PageEditor() {
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !pageId || !booklet) return;
-    await setPagePhoto(pageId, file, booklet.canvasSize);
+    await setPagePhoto(pageId, file, booklet);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -94,6 +95,9 @@ export function PageEditor() {
 
   if (!booklet || !page) return null;
 
+  const trimSize = getTrimSize(booklet.canvasSize);
+  const pageAspect = trimSize.widthPx / trimSize.heightPx;
+
   return (
     <div className="flex flex-col fixed inset-x-0 top-16 bottom-0 z-40 w-full bg-background animate-in fade-in duration-200">
       {/* Main workspace */}
@@ -103,12 +107,17 @@ export function PageEditor() {
         <div className="flex-1 relative flex items-center justify-center p-4">
           {/* bg-white is intentional: the canvas is a print-fidelity preview and must
               always render on white so exported colours match what users see here.
-              The ring uses a theme-aware colour so the frame looks tidy in dark mode. */}
-          <div className="relative shadow-xl w-full max-w-[400px] aspect-square bg-white ring-2 ring-border/40">
+              The ring uses a theme-aware colour so the frame looks tidy in dark mode.
+              The aspect ratio is derived from the booklet's trim size so portrait
+              booklets (e.g. 7.5"×10") display correctly. */}
+          <div
+            className="relative shadow-xl w-full max-w-[400px] bg-white ring-2 ring-border/40"
+            style={{ aspectRatio: pageAspect }}
+          >
             <LiveCanvas 
               page={page} 
               booklet={booklet} 
-              renderSize={800} // High-res internal canvas scaled down by CSS
+              maxRenderSize={800} // High-res internal canvas scaled down by CSS
               className="w-full h-full cursor-pointer touch-none"
               onBgTap={handleCanvasTap}
             />

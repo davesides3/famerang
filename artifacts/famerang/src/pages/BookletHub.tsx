@@ -25,7 +25,7 @@ import { generateDraftPdf, isLargeDraftPdf, estimateDraftPdfBytes } from '@/lib/
 import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhotoExportBytes } from '@/lib/photoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
-import { CANVAS_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
+import { TRIM_SIZES, FONT_FAMILY_OPTIONS } from '@/lib/types';
 import type { PageWithStamps } from '@/lib/types';
 import { PagePreview } from '@/pages/PagePreview';
 import { cn, formatEstimatedSize } from '@/lib/utils';
@@ -228,7 +228,7 @@ export function BookletHub() {
   };
 
   const handleSendPhotosClick = () => {
-    if (isLargePhotoExport(booklet.canvasSize, pages.length) && !confirmLargePhotos) {
+    if (isLargePhotoExport(booklet, pages.length) && !confirmLargePhotos) {
       setConfirmLargePhotos(true);
       return;
     }
@@ -382,7 +382,7 @@ export function BookletHub() {
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
               <p className="text-xs font-bold">
                 This export will be large (about{' '}
-                {formatEstimatedSize(estimatePhotoExportBytes(booklet.canvasSize, pages.length))} for {pages.length} pages) --
+                {formatEstimatedSize(estimatePhotoExportBytes(booklet, pages.length))} for {pages.length} pages) --
                 it may be slow to send over cellular or bounce off email attachment limits. Tap Send again to continue
                 anyway.
               </p>
@@ -417,11 +417,11 @@ export function BookletHub() {
               <label className="text-sm font-bold text-muted-foreground block">Trim Size</label>
               <select
                 value={booklet.canvasSize}
-                onChange={(e) => updateBooklet(booklet.id, { canvasSize: Number(e.target.value) as any })}
+                onChange={(e) => updateBooklet(booklet.id, { canvasSize: e.target.value as import('@/lib/types').TrimSizeKey })}
                 className="w-full bg-background text-foreground px-4 py-2 rounded-xl border-2 border-border focus:border-primary focus:outline-none"
               >
-                {CANVAS_SIZES.map((s) => (
-                  <option key={s.value} value={s.value}>
+                {TRIM_SIZES.map((s) => (
+                  <option key={s.key} value={s.key}>
                     {s.label}
                   </option>
                 ))}

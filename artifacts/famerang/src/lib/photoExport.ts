@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { canvasToBlob, renderPageToCanvas } from './compositing';
-import type { Booklet, CanvasSize, PageWithStamps } from './types';
+import { getTrimSize } from './types';
+import type { Booklet, PageWithStamps } from './types';
 
 const EXPORT_QUALITY = 0.9;
 
@@ -16,12 +17,13 @@ export const LARGE_PHOTO_EXPORT_BYTES = 25 * 1024 * 1024;
 /** Estimates the total size of a full-resolution "Send Photos" export
  * without actually rendering anything, so the UI can warn before the
  * (potentially slow) compositing work starts. */
-export function estimatePhotoExportBytes(canvasSize: CanvasSize, pageCount: number): number {
-  return canvasSize * canvasSize * BYTES_PER_PIXEL_ESTIMATE * pageCount;
+export function estimatePhotoExportBytes(booklet: Booklet, pageCount: number): number {
+  const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
+  return widthPx * heightPx * BYTES_PER_PIXEL_ESTIMATE * pageCount;
 }
 
-export function isLargePhotoExport(canvasSize: CanvasSize, pageCount: number): boolean {
-  return estimatePhotoExportBytes(canvasSize, pageCount) > LARGE_PHOTO_EXPORT_BYTES;
+export function isLargePhotoExport(booklet: Booklet, pageCount: number): boolean {
+  return estimatePhotoExportBytes(booklet, pageCount) > LARGE_PHOTO_EXPORT_BYTES;
 }
 
 /**
@@ -35,9 +37,10 @@ export async function renderPagesAsJpegBlobs(
   booklet: Booklet,
   pages: PageWithStamps[],
 ): Promise<Blob[]> {
+  const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
   const blobs: Blob[] = [];
   for (const page of pages) {
-    const canvas = await renderPageToCanvas(page, booklet, booklet.canvasSize);
+    const canvas = await renderPageToCanvas(page, booklet, widthPx, heightPx);
     blobs.push(await canvasToBlob(canvas, 'image/jpeg', EXPORT_QUALITY));
   }
   return blobs;

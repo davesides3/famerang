@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Booklet, Page, PageStamp, Stamp, StampPackage } from './types';
+import type { Booklet, Page, PageStamp, Stamp, StampPackage, TrimSizeKey } from './types';
 
 // A single local IndexedDB database. Everything -- booklets, pages, stamp
 // packages, stamps, and stamp placements -- lives entirely on this device.
@@ -68,6 +68,33 @@ class FamerangDB extends Dexie {
       stamps: 'id, packageId, contentHash',
       pageStamps: 'id, pageId, stampId',
     });
+    // v5: booklet.canvasSize changes from a numeric pixel size (2100/2400/2700)
+    // to a string trim-size key ('7x7'/'8x8'/'9x9'). This enables non-square
+    // trim sizes (e.g. '7.5x10'). Existing numeric values are mapped here so
+    // old booklets open correctly without any data loss.
+    this.version(5)
+      .stores({
+        booklets: 'id, updatedAt',
+        pages: 'id, bookletId, sortOrder',
+        stampPackages: 'id, createdAt, sortOrder',
+        stamps: 'id, packageId, contentHash',
+        pageStamps: 'id, pageId, stampId',
+      })
+      .upgrade((tx) => {
+        const numericToKey: Record<number, TrimSizeKey> = {
+          2100: '7x7',
+          2400: '8x8',
+          2700: '9x9',
+        };
+        return tx
+          .table('booklets')
+          .toCollection()
+          .modify((booklet) => {
+            if (typeof booklet.canvasSize === 'number') {
+              booklet.canvasSize = numericToKey[booklet.canvasSize as number] ?? '7x7';
+            }
+          });
+      });
   }
 }
 

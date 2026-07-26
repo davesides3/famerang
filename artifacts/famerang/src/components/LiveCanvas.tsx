@@ -1,20 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { renderPageToCanvas } from '@/lib/compositing';
+import { getTrimSize } from '@/lib/types';
 import type { Booklet, PageWithStamps } from '@/lib/types';
 import { movePageStamp } from '@/lib/hooks';
 
 interface LiveCanvasProps {
   page: PageWithStamps;
   booklet: Booklet;
-  renderSize?: number;
+  /** Max pixel size for the internal render canvas (long edge). The actual
+   *  render dimensions are computed from this + the booklet's aspect ratio
+   *  so portrait and square pages both look correct. Default: 600. */
+  maxRenderSize?: number;
   onBgTap?: (xRatio: number, yRatio: number) => void;
   className?: string;
 }
 
-export function LiveCanvas({ page, booklet, renderSize = 600, onBgTap, className }: LiveCanvasProps) {
+export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, className }: LiveCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [localStamps, setLocalStamps] = useState(page.stamps);
+
+  // Compute render dimensions from the booklet's trim size, bounded by maxRenderSize.
+  const trimSize = getTrimSize(booklet.canvasSize);
+  const aspect = trimSize.widthPx / trimSize.heightPx;
+  const renderWidth  = aspect >= 1 ? maxRenderSize : Math.round(maxRenderSize * aspect);
+  const renderHeight = aspect >= 1 ? Math.round(maxRenderSize / aspect) : maxRenderSize;
 
   // Sync with DB when not actively dragging
   useEffect(() => {
@@ -27,7 +37,7 @@ export function LiveCanvas({ page, booklet, renderSize = 600, onBgTap, className
     let active = true;
     const syntheticPage = { ...page, stamps: localStamps };
     
-    renderPageToCanvas(syntheticPage, booklet, renderSize).then(offscreen => {
+    renderPageToCanvas(syntheticPage, booklet, renderWidth, renderHeight).then(offscreen => {
       if (!active) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -37,7 +47,7 @@ export function LiveCanvas({ page, booklet, renderSize = 600, onBgTap, className
       ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     });
     return () => { active = false; };
-  }, [page, booklet, localStamps, renderSize]);
+  }, [page, booklet, localStamps, renderWidth, renderHeight]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -90,8 +100,8 @@ export function LiveCanvas({ page, booklet, renderSize = 600, onBgTap, className
   return (
     <canvas
       ref={canvasRef}
-      width={renderSize}
-      height={renderSize}
+      width={renderWidth}
+      height={renderHeight}
       className={className}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

@@ -1,5 +1,5 @@
 // Client-side image utilities. Photos are always center-cropped and
-// downscaled to the booklet's square canvas size BEFORE being written to
+// downscaled to the booklet's page dimensions BEFORE being written to
 // local storage, so we never keep a full-resolution phone photo around.
 
 /** Loads a File/Blob into an HTMLImageElement. */
@@ -13,30 +13,49 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Reads a user-selected photo file, center-crops it to a square, and
- * downscales it to `targetSize` x `targetSize`. Returns a JPEG data URL.
- * This keeps on-device storage bounded regardless of the source photo's
- * resolution.
+ * Reads a user-selected photo file, center-crops it to the target aspect
+ * ratio, and downscales it to `targetWidth` × `targetHeight`. Returns a
+ * JPEG data URL. This keeps on-device storage bounded regardless of the
+ * source photo's resolution.
+ *
+ * For square booklets `targetWidth === targetHeight` (behaviour unchanged
+ * from the original square-only implementation). For portrait booklets
+ * (e.g. 7.5"×10") the crop window matches the page's 3:4 ratio.
  */
 export async function downscaleImageFileToDataUrl(
   file: File,
-  targetSize: number,
+  targetWidth: number,
+  targetHeight: number,
 ): Promise<string> {
   const objectUrl = URL.createObjectURL(file);
   try {
     const img = await loadImage(objectUrl);
-    const side = Math.min(img.naturalWidth, img.naturalHeight);
-    const sx = (img.naturalWidth - side) / 2;
-    const sy = (img.naturalHeight - side) / 2;
+    const targetAspect = targetWidth / targetHeight;
+    const imgAspect    = img.naturalWidth / img.naturalHeight;
+
+    let srcWidth: number, srcHeight: number, sx: number, sy: number;
+    if (imgAspect > targetAspect) {
+      // Source image is wider than target ratio — crop the sides.
+      srcHeight = img.naturalHeight;
+      srcWidth  = img.naturalHeight * targetAspect;
+      sx = (img.naturalWidth - srcWidth) / 2;
+      sy = 0;
+    } else {
+      // Source image is taller than target ratio — crop top/bottom.
+      srcWidth  = img.naturalWidth;
+      srcHeight = img.naturalWidth / targetAspect;
+      sx = 0;
+      sy = (img.naturalHeight - srcHeight) / 2;
+    }
 
     const canvas = document.createElement('canvas');
-    canvas.width = targetSize;
-    canvas.height = targetSize;
+    canvas.width  = targetWidth;
+    canvas.height = targetHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Canvas 2D context unavailable');
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, sx, sy, side, side, 0, 0, targetSize, targetSize);
+    ctx.drawImage(img, sx, sy, srcWidth, srcHeight, 0, 0, targetWidth, targetHeight);
 
     return canvas.toDataURL('image/jpeg', 0.88);
   } finally {

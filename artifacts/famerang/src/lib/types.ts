@@ -1,15 +1,34 @@
 // Core domain types for Famerang. Everything here is persisted locally via
 // Dexie (IndexedDB) -- there is no server and no network representation.
 
-export type CanvasSize = 2100 | 2400 | 2700;
+// ─── Trim sizes ───────────────────────────────────────────────────────────────
 
-export const CANVAS_SIZES: { value: CanvasSize; label: string }[] = [
-  { value: 2100, label: '7" x 7"' },
-  { value: 2400, label: '8" x 8"' },
-  { value: 2700, label: '9" x 9"' },
+export type TrimSizeKey = '7x7' | '8x8' | '9x9' | '7.5x10';
+
+export interface TrimSize {
+  key: TrimSizeKey;
+  label: string;
+  widthPx: number;
+  heightPx: number;
+}
+
+export const TRIM_SIZES: TrimSize[] = [
+  { key: '7x7',    label: '7" × 7"',                 widthPx: 2100, heightPx: 2100 },
+  { key: '8x8',    label: '8" × 8"',                 widthPx: 2400, heightPx: 2400 },
+  { key: '9x9',    label: '9" × 9"',                 widthPx: 2700, heightPx: 2700 },
+  { key: '7.5x10', label: '7.5" × 10" (Home Print)', widthPx: 2250, heightPx: 3000 },
 ];
 
-export const DEFAULT_CANVAS_SIZE: CanvasSize = 2100;
+export const DEFAULT_TRIM_SIZE_KEY: TrimSizeKey = '7x7';
+
+/** Returns the TrimSize for a key, falling back to the default if the key is
+ *  unrecognised (graceful handling of any stale data). */
+export function getTrimSize(key: TrimSizeKey): TrimSize {
+  return TRIM_SIZES.find((s) => s.key === key) ?? TRIM_SIZES[0];
+}
+
+// ─── Domain model ─────────────────────────────────────────────────────────────
+
 export const DEFAULT_FONT_FAMILY = 'Comic Sans MS';
 export const DEFAULT_FONT_SIZE = 60;
 
@@ -26,7 +45,10 @@ export type TextPlacement = 'above' | 'below';
 export interface Booklet {
   id: string;
   title: string;
-  canvasSize: CanvasSize;
+  /** String key into TRIM_SIZES (e.g. '7x7', '8x8', '9x9', '7.5x10').
+   *  Stored as a string since db.ts v5; older records with a numeric value
+   *  are migrated automatically on open. */
+  canvasSize: TrimSizeKey;
   fontFamily: string;
   fontSize: number;
   createdAt: number;
