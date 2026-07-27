@@ -1,5 +1,5 @@
 import { getTrimSize } from './types';
-import type { Booklet, PageStampWithStamp, PageWithStamps } from './types';
+import type { Booklet, PageStickerWithSticker, PageWithStickers } from './types';
 
 /** Wraps `text` to fit within `maxWidth` on the given canvas context,
  * splitting on whitespace and breaking any single word that is itself too
@@ -78,7 +78,7 @@ async function ensureFontLoaded(fontFamily: string, fontSizePx: number): Promise
 }
 
 /**
- * Composites one storybook page (photo + caption + stamps) onto a canvas.
+ * Composites one storybook page (photo + caption + stickers) onto a canvas.
  * This is the single source of truth for page layout -- the live page
  * editor preview, the draft PDF, and the page-image export all render
  * through this function so what the user sees while editing is exactly
@@ -93,7 +93,7 @@ async function ensureFontLoaded(fontFamily: string, fontSizePx: number): Promise
  * @param renderHeight Pixel height of the canvas to render at.
  */
 export async function renderPageToCanvas(
-  page: PageWithStamps,
+  page: PageWithStickers,
   booklet: Booklet,
   renderWidth?: number,
   renderHeight?: number,
@@ -174,26 +174,26 @@ export async function renderPageToCanvas(
     ctx.textAlign = 'left';
   }
 
-  // Stamps, drawn in stacking order, centered on their relative position.
+  // Stickers, drawn in stacking order, centered on their relative position.
   // xRatio and yRatio are fractions of the page width/height respectively,
   // so they work correctly for both square and portrait pages.
-  const sortedStamps = [...page.stamps].sort(
+  const sortedStickers = [...page.stickers].sort(
     (a, b) => a.stackOrder - b.stackOrder,
   );
-  for (const placement of sortedStamps as PageStampWithStamp[]) {
-    const stampImg = await loadImageCached(
+  for (const placement of sortedStickers as PageStickerWithSticker[]) {
+    const stickerImg = await loadImageCached(
       imageCache,
-      placement.stamp.pngDataUrl,
+      placement.sticker.pngDataUrl,
     );
-    // Use page width as the reference for stamp sizing so a stamp appears
+    // Use page width as the reference for sticker sizing so a sticker appears
     // the same visual weight regardless of portrait vs. square layout.
-    const stampSize = rw * 0.22;
+    const stickerSize = rw * 0.22;
     const cx = placement.xRatio * rw;
     const cy = placement.yRatio * rh;
-    const aspect = stampImg.naturalWidth / stampImg.naturalHeight || 1;
-    const w = aspect >= 1 ? stampSize : stampSize * aspect;
-    const h = aspect >= 1 ? stampSize / aspect : stampSize;
-    ctx.drawImage(stampImg, cx - w / 2, cy - h / 2, w, h);
+    const aspect = stickerImg.naturalWidth / stickerImg.naturalHeight || 1;
+    const w = aspect >= 1 ? stickerSize : stickerSize * aspect;
+    const h = aspect >= 1 ? stickerSize / aspect : stickerSize;
+    ctx.drawImage(stickerImg, cx - w / 2, cy - h / 2, w, h);
   }
 
   return canvas;

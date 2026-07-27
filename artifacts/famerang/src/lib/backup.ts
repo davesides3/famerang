@@ -1,26 +1,26 @@
 import JSZip from 'jszip';
 import { db } from './db';
-import type { Booklet, Page, PageStamp, Stamp, StampPackage } from './types';
+import type { Booklet, Page, PageSticker, Sticker, StickerPack } from './types';
 
 const BOOKLET_MANIFEST_ENTRY = 'manifest.json';
 
 // ─── v3 manifest shape ───────────────────────────────────────────────────────
 //
-// v1 (removed): single famerang-booklet-backup.json with all photos and stamp
+// v1 (removed): single famerang-booklet-backup.json with all photos and sticker
 //               images embedded as base64 data URLs.
-// v2 (removed): manifest.json + page-<n>.<ext> binary entries; stamp images
-//               still embedded as base64 in manifest.stamps.
+// v2 (removed): manifest.json + page-<n>.<ext> binary entries; sticker images
+//               still embedded as base64 in manifest.stickers.
 // v3 (current): manifest.json + page-<n>.<ext> binary entries +
-//               stamps/<name>.png binary entries; no base64 anywhere.
+//               stickers/<name>.png binary entries; no base64 anywhere.
 
 interface BookletManifestPage extends Omit<Page, 'photoDataUrl'> {
   /** Zip entry path for this page's photo, if it has one (e.g. `page-1.jpg`). */
   photoFilename?: string;
 }
 
-/** Stamp metadata as stored in the v3 manifest — no image data. */
-interface ManifestStamp extends Omit<Stamp, 'pngDataUrl'> {
-  /** Zip entry path for this stamp's image (e.g. `stamps/spinosaurus.png`). */
+/** Sticker metadata as stored in the v3 manifest — no image data. */
+interface ManifestSticker extends Omit<Sticker, 'pngDataUrl'> {
+  /** Zip entry path for this sticker's image (e.g. `stickers/spinosaurus.png`). */
   filename: string;
 }
 
@@ -30,9 +30,9 @@ interface BookletManifest {
   kind: 'booklet';
   booklet: Booklet;
   pages: BookletManifestPage[];
-  pageStamps: PageStamp[];
-  stampPackages: StampPackage[];
-  stamps: ManifestStamp[];
+  pageStickers: PageSticker[];
+  stickerPacks: StickerPack[];
+  stickers: ManifestSticker[];
 }
 
 // ─── Helper utilities ─────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ function isValidSortOrder(value: unknown): value is number {
   return typeof value === 'number' && !Number.isNaN(value);
 }
 
-function withNormalizedPackageOrder(packages: StampPackage[]): StampPackage[] {
+function withNormalizedPackageOrder(packages: StickerPack[]): StickerPack[] {
   if (packages.every((p) => isValidSortOrder(p.sortOrder))) return packages;
   const orderById = new Map(
     [...packages]
@@ -53,11 +53,11 @@ function withNormalizedPackageOrder(packages: StampPackage[]): StampPackage[] {
   );
 }
 
-async function withPreservedPackageOrder(packages: StampPackage[]): Promise<StampPackage[]> {
+async function withPreservedPackageOrder(packages: StickerPack[]): Promise<StickerPack[]> {
   if (!packages.length) return packages;
   const [existingById, allLocal] = await Promise.all([
-    db.stampPackages.bulkGet(packages.map((p) => p.id)),
-    db.stampPackages.toArray(),
+    db.stickerPacks.bulkGet(packages.map((p) => p.id)),
+    db.stickerPacks.toArray(),
   ]);
   let nextOrder = allLocal.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1) + 1;
   return packages.map((pkg, i) => {
@@ -103,12 +103,12 @@ function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
   return `data:${mimeType};base64,${btoa(binary)}`;
 }
 
-/** Derives a unique `stamps/<filename>.png` path for each stamp.
- * Uses the stamp name; appends the first 8 chars of the ID on collision. */
-function stampZipPath(stamp: Stamp, usedPaths: Set<string>): string {
-  const base = `stamps/${stamp.name}.png`;
+/** Derives a unique `stickers/<filename>.png` path for each sticker.
+ * Uses the sticker name; appends the first 8 chars of the ID on collision. */
+function stickerZipPath(sticker: Sticker, usedPaths: Set<string>): string {
+  const base = `stickers/${sticker.name}.png`;
   if (!usedPaths.has(base)) return base;
-  return `stamps/${stamp.name}-${stamp.id.slice(0, 8)}.png`;
+  return `stickers/${sticker.name}-${sticker.id.slice(0, 8)}.png`;
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
@@ -116,9 +116,9 @@ function stampZipPath(stamp: Stamp, usedPaths: Set<string>): string {
 /**
  * Exports a single booklet as a v3 ZIP containing:
  *   - `manifest.json`      — booklet metadata, page records (no photoDataUrl),
- *                            stamp package metadata, stamp metadata (no pngDataUrl)
+ *                            sticker package metadata, sticker metadata (no pngDataUrl)
  *   - `page-<n>.<ext>`     — one binary image file per page that has a photo
- *   - `stamps/<name>.png`  — one binary PNG per stamp used in the booklet
+ *   - `stickers/<name>.png`  — one binary PNG per sticker used in the booklet
  *
  * Image entries use STORE compression since JPEGs/PNGs are already compressed.
  */
@@ -128,15 +128,15 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
 
   const pages = await db.pages.where('bookletId').equals(bookletId).sortBy('sortOrder');
   const pageIds = pages.map((p) => p.id);
-  const pageStamps = pageIds.length
-    ? await db.pageStamps.where('pageId').anyOf(pageIds).toArray()
+  const pageStickers = pageIds.length
+    ? await db.pageStickers.where('pageId').anyOf(pageIds).toArray()
     : [];
 
-  const stampIds = Array.from(new Set(pageStamps.map((ps) => ps.stampId)));
-  const stamps = stampIds.length ? await db.stamps.where('id').anyOf(stampIds).toArray() : [];
-  const packageIds = Array.from(new Set(stamps.map((s) => s.packageId)));
-  const stampPackages = packageIds.length
-    ? await db.stampPackages.where('id').anyOf(packageIds).toArray()
+  const stickerIds = Array.from(new Set(pageStickers.map((ps) => ps.stickerId)));
+  const stickers = stickerIds.length ? await db.stickers.where('id').anyOf(stickerIds).toArray() : [];
+  const packageIds = Array.from(new Set(stickers.map((s) => s.packageId)));
+  const stickerPacks = packageIds.length
+    ? await db.stickerPacks.where('id').anyOf(packageIds).toArray()
     : [];
 
   const zip = new JSZip();
@@ -159,15 +159,15 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
     manifestPages.push({ ...pageWithoutPhoto, ...(photoFilename ? { photoFilename } : {}) });
   });
 
-  // ── Stamp images ───────────────────────────────────────────────────────────
+  // ── Sticker images ───────────────────────────────────────────────────────────
   const usedPaths = new Set<string>();
-  const manifestStamps: ManifestStamp[] = stamps.map((stamp) => {
-    const filename = stampZipPath(stamp, usedPaths);
+  const manifestStickers: ManifestSticker[] = stickers.map((sticker) => {
+    const filename = stickerZipPath(sticker, usedPaths);
     usedPaths.add(filename);
-    zip.file(filename, dataUrlToBytes(stamp.pngDataUrl), { compression: 'STORE' });
+    zip.file(filename, dataUrlToBytes(sticker.pngDataUrl), { compression: 'STORE' });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { pngDataUrl, ...stampMeta } = stamp;
-    return { ...stampMeta, filename };
+    const { pngDataUrl, ...stickerMeta } = sticker;
+    return { ...stickerMeta, filename };
   });
 
   // ── Manifest ───────────────────────────────────────────────────────────────
@@ -177,9 +177,9 @@ export async function exportBookletZip(bookletId: string): Promise<Blob> {
     kind: 'booklet',
     booklet,
     pages: manifestPages,
-    pageStamps,
-    stampPackages,
-    stamps: manifestStamps,
+    pageStickers,
+    stickerPacks,
+    stickers: manifestStickers,
   };
 
   zip.file(BOOKLET_MANIFEST_ENTRY, JSON.stringify(manifest, null, 2));
@@ -198,7 +198,7 @@ const newId = () => crypto.randomUUID();
  * Restores a single booklet from a v3 ZIP produced by `exportBookletZip`,
  * overwriting the booklet identified by `targetBookletId`.
  *
- * Always replaces (never merges). Restored pages and page-stamps get fresh
+ * Always replaces (never merges). Restored pages and page-stickers get fresh
  * IDs to avoid colliding with still-live rows from the original booklet.
  */
 export async function restoreBookletZip(file: File, targetBookletId: string): Promise<Booklet> {
@@ -240,11 +240,11 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
     }),
   );
 
-  // ── Stamps ─────────────────────────────────────────────────────────────────
-  const stamps: Stamp[] = await Promise.all(
-    (manifest.stamps ?? []).map(async (ms) => {
+  // ── Stickers ─────────────────────────────────────────────────────────────────
+  const stickers: Sticker[] = await Promise.all(
+    (manifest.stickers ?? []).map(async (ms) => {
       const entry = zip.file(ms.filename);
-      if (!entry) throw new Error(`Backup is missing stamp image: ${ms.filename}`);
+      if (!entry) throw new Error(`Backup is missing sticker image: ${ms.filename}`);
       const bytes = await entry.async('uint8array');
       return { ...ms, pngDataUrl: bytesToDataUrl(bytes, 'image/png') };
     }),
@@ -253,24 +253,24 @@ export async function restoreBookletZip(file: File, targetBookletId: string): Pr
   return applyRestoredBooklet(
     manifest.booklet,
     pagesWithPhotos,
-    manifest.pageStamps ?? [],
-    manifest.stampPackages ?? [],
-    stamps,
+    manifest.pageStickers ?? [],
+    manifest.stickerPacks ?? [],
+    stickers,
     targetBookletId,
   );
 }
 
 /**
  * Shared logic: writes the restored booklet data into IndexedDB under
- * `targetBookletId`, assigning fresh IDs to pages and page-stamps to avoid
+ * `targetBookletId`, assigning fresh IDs to pages and page-stickers to avoid
  * colliding with still-live rows from the original booklet.
  */
 async function applyRestoredBooklet(
   booklet: Booklet,
   pages: Page[],
-  pageStamps: PageStamp[],
-  stampPackages: StampPackage[],
-  stamps: Stamp[],
+  pageStickers: PageSticker[],
+  stickerPacks: StickerPack[],
+  stickers: Sticker[],
   targetBookletId: string,
 ): Promise<Booklet> {
   const restoredBooklet: Booklet = { ...booklet, id: targetBookletId };
@@ -282,7 +282,7 @@ async function applyRestoredBooklet(
     return { ...p, id: freshId, bookletId: targetBookletId };
   });
 
-  const restoredPageStamps = pageStamps
+  const restoredPageStickers = pageStickers
     .filter((ps) => pageIdMap.has(ps.pageId))
     .map((ps) => ({ ...ps, id: newId(), pageId: pageIdMap.get(ps.pageId)! }));
 
@@ -290,27 +290,27 @@ async function applyRestoredBooklet(
     'rw',
     db.booklets,
     db.pages,
-    db.stampPackages,
-    db.stamps,
-    db.pageStamps,
+    db.stickerPacks,
+    db.stickers,
+    db.pageStickers,
     async () => {
       const existingPages = await db.pages.where('bookletId').equals(targetBookletId).toArray();
       const existingPageIds = existingPages.map((p) => p.id);
       if (existingPageIds.length) {
-        await db.pageStamps.where('pageId').anyOf(existingPageIds).delete();
+        await db.pageStickers.where('pageId').anyOf(existingPageIds).delete();
         await db.pages.bulkDelete(existingPageIds);
       }
 
       await db.booklets.put(restoredBooklet);
       if (restoredPages.length) await db.pages.bulkPut(restoredPages);
-      if (stampPackages.length) {
+      if (stickerPacks.length) {
         const orderedPackages = await withPreservedPackageOrder(
-          withNormalizedPackageOrder(stampPackages),
+          withNormalizedPackageOrder(stickerPacks),
         );
-        await db.stampPackages.bulkPut(orderedPackages);
+        await db.stickerPacks.bulkPut(orderedPackages);
       }
-      if (stamps.length) await db.stamps.bulkPut(stamps);
-      if (restoredPageStamps.length) await db.pageStamps.bulkPut(restoredPageStamps);
+      if (stickers.length) await db.stickers.bulkPut(stickers);
+      if (restoredPageStickers.length) await db.pageStickers.bulkPut(restoredPageStickers);
     },
   );
 

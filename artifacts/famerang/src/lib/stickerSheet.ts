@@ -1,10 +1,10 @@
 /**
- * Generates a print-ready stamp sheet (7" × 10.5" at 300 DPI) as both PNG
- * blob(s) and a multi-page PDF blob.  Each stamp is drawn in a 4-column grid
+ * Generates a print-ready sticker sheet (7" × 10.5" at 300 DPI) as both PNG
+ * blob(s) and a multi-page PDF blob.  Each sticker is drawn in a 4-column grid
  * with its filename (minus the .png extension) as a caption below.
  */
 import { jsPDF } from 'jspdf';
-import type { Stamp, StampPackage } from './types';
+import type { Sticker, StickerPack } from './types';
 
 // ── Page geometry (300 DPI) ────────────────────────────────────────────────
 const DPI      = 300;
@@ -29,9 +29,9 @@ const CREDIT_PX    = Math.round(CREDIT_PT  * PT_TO_PX);   // 29
 // Grid layout
 const GRID_W     = PAGE_W_PX - 2 * MARGIN_PX;             // 1800
 const CELL_W     = Math.floor(GRID_W / COLS);              // 450
-const STAMP_SIZE = Math.round(CELL_W * 0.78);              // 351
+const STICKER_SIZE = Math.round(CELL_W * 0.78);              // 351
 const CAPTION_H  = Math.round(0.3 * DPI);                  // 90  — text + padding
-const CELL_H     = STAMP_SIZE + CAPTION_H;                 // 441
+const CELL_H     = STICKER_SIZE + CAPTION_H;                 // 441
 
 // How far down the grid starts (after header)
 const HEADER_BLOCK_H = MARGIN_PX + TITLE_PX + Math.round(0.15 * DPI); // 150+117+45 ≈ 312
@@ -62,8 +62,8 @@ function ellipsize(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
 
 function renderPage(
   canvas: HTMLCanvasElement,
-  pkg: StampPackage,
-  stamps: Stamp[],
+  pkg: StickerPack,
+  stickers: Sticker[],
   images: (HTMLImageElement | null)[],
   pageIndex: number,
   totalPages: number,
@@ -81,31 +81,31 @@ function renderPage(
   const titleText = totalPages > 1 ? `${pkg.name}  (${pageIndex + 1} / ${totalPages})` : pkg.name;
   ctx.fillText(titleText, PAGE_W_PX / 2, MARGIN_PX + TITLE_PX);
 
-  // Stamps
+  // Stickers
   const base = pageIndex * PER_PAGE;
-  const slice = stamps.slice(base, base + PER_PAGE);
+  const slice = stickers.slice(base, base + PER_PAGE);
 
-  slice.forEach((stamp, i) => {
+  slice.forEach((sticker, i) => {
     const col  = i % COLS;
     const row  = Math.floor(i / COLS);
     const cellX = MARGIN_PX + col * CELL_W;
     const cellY = GRID_Y     + row * CELL_H;
 
-    // Stamp image — centred in cell width, flush to cell top
+    // Sticker image — centred in cell width, flush to cell top
     const img = images[base + i];
     if (img) {
-      const imgX = cellX + (CELL_W - STAMP_SIZE) / 2;
-      ctx.drawImage(img, imgX, cellY, STAMP_SIZE, STAMP_SIZE);
+      const imgX = cellX + (CELL_W - STICKER_SIZE) / 2;
+      ctx.drawImage(img, imgX, cellY, STICKER_SIZE, STICKER_SIZE);
     }
 
     // Caption
-    const caption = stamp.name.replace(/\.png$/i, '');
+    const caption = sticker.name.replace(/\.png$/i, '');
     ctx.fillStyle = '#444444';
     ctx.font      = `${CAPTION_PX}px sans-serif`;
     ctx.textAlign = 'center';
     const maxW   = CELL_W - Math.round(0.1 * DPI);
     const label  = ellipsize(ctx, caption, maxW);
-    const captionY = cellY + STAMP_SIZE + Math.round(CAPTION_H * 0.55);
+    const captionY = cellY + STICKER_SIZE + Math.round(CAPTION_H * 0.55);
     ctx.fillText(label, cellX + CELL_W / 2, captionY);
   });
 
@@ -121,21 +121,21 @@ function renderPage(
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export interface StampSheetAssets {
-  /** One PNG blob per sheet page — single file if stamps fit on one page. */
+export interface StickerSheetAssets {
+  /** One PNG blob per sheet page — single file if stickers fit on one page. */
   pngBlobs: { name: string; blob: Blob }[];
   /** Single PDF containing all sheet pages. */
   pdfBlob: Blob;
 }
 
-export async function generateStampSheetAssets(
-  pkg: StampPackage,
-  stamps: Stamp[],
-): Promise<StampSheetAssets> {
-  const totalPages = Math.max(1, Math.ceil(stamps.length / PER_PAGE));
+export async function generateStickerSheetAssets(
+  pkg: StickerPack,
+  stickers: Sticker[],
+): Promise<StickerSheetAssets> {
+  const totalPages = Math.max(1, Math.ceil(stickers.length / PER_PAGE));
 
-  // Load all stamp images in parallel
-  const images = await Promise.all(stamps.map(s => loadImage(s.pngDataUrl)));
+  // Load all sticker images in parallel
+  const images = await Promise.all(stickers.map(s => loadImage(s.pngDataUrl)));
 
   const canvas     = document.createElement('canvas');
   canvas.width     = PAGE_W_PX;
@@ -145,7 +145,7 @@ export async function generateStampSheetAssets(
   const pageDataUrls: string[] = [];
 
   for (let p = 0; p < totalPages; p++) {
-    renderPage(canvas, pkg, stamps, images, p, totalPages);
+    renderPage(canvas, pkg, stickers, images, p, totalPages);
 
     const dataUrl = canvas.toDataURL('image/png');
     pageDataUrls.push(dataUrl);
@@ -153,7 +153,7 @@ export async function generateStampSheetAssets(
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(b => b ? resolve(b) : reject(new Error('canvas.toBlob failed')), 'image/png'),
     );
-    const name = totalPages === 1 ? 'stamp-sheet.png' : `stamp-sheet-${p + 1}.png`;
+    const name = totalPages === 1 ? 'sticker-sheet.png' : `sticker-sheet-${p + 1}.png`;
     pngBlobs.push({ name, blob });
   }
 

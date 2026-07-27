@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { renderPageToCanvas } from '@/lib/compositing';
 import { getTrimSize } from '@/lib/types';
-import type { Booklet, PageWithStamps } from '@/lib/types';
-import { movePageStamp } from '@/lib/hooks';
+import type { Booklet, PageWithStickers } from '@/lib/types';
+import { movePageSticker } from '@/lib/hooks';
 
 interface LiveCanvasProps {
-  page: PageWithStamps;
+  page: PageWithStickers;
   booklet: Booklet;
   /** Max pixel size for the internal render canvas (long edge). The actual
    *  render dimensions are computed from this + the booklet's aspect ratio
@@ -18,7 +18,7 @@ interface LiveCanvasProps {
 export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, className }: LiveCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [localStamps, setLocalStamps] = useState(page.stamps);
+  const [localStickers, setLocalStickers] = useState(page.stickers);
 
   // Compute render dimensions from the booklet's trim size, bounded by maxRenderSize.
   const trimSize = getTrimSize(booklet.canvasSize);
@@ -29,13 +29,13 @@ export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, classN
   // Sync with DB when not actively dragging
   useEffect(() => {
     if (!draggingId) {
-      setLocalStamps(page.stamps);
+      setLocalStickers(page.stickers);
     }
-  }, [page.stamps, draggingId]);
+  }, [page.stickers, draggingId]);
 
   useEffect(() => {
     let active = true;
-    const syntheticPage = { ...page, stamps: localStamps };
+    const syntheticPage = { ...page, stickers: localStickers };
     
     renderPageToCanvas(syntheticPage, booklet, renderWidth, renderHeight).then(offscreen => {
       if (!active) return;
@@ -47,7 +47,7 @@ export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, classN
       ctx.drawImage(offscreen, 0, 0, canvas.width, canvas.height);
     });
     return () => { active = false; };
-  }, [page, booklet, localStamps, renderWidth, renderHeight]);
+  }, [page, booklet, localStickers, renderWidth, renderHeight]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -56,12 +56,12 @@ export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, classN
     const xRatio = (e.clientX - rect.left) / rect.width;
     const yRatio = (e.clientY - rect.top) / rect.height;
 
-    const STAMP_RADIUS = 0.11;
-    const stampsReversed = [...localStamps].sort((a,b) => b.stackOrder - a.stackOrder);
-    const hit = stampsReversed.find(s => {
+    const STICKER_RADIUS = 0.11;
+    const stickersReversed = [...localStickers].sort((a,b) => b.stackOrder - a.stackOrder);
+    const hit = stickersReversed.find(s => {
       const dx = s.xRatio - xRatio;
       const dy = s.yRatio - yRatio;
-      return Math.sqrt(dx*dx + dy*dy) < STAMP_RADIUS;
+      return Math.sqrt(dx*dx + dy*dy) < STICKER_RADIUS;
     });
 
     if (hit) {
@@ -80,7 +80,7 @@ export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, classN
     const xRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const yRatio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
 
-    setLocalStamps(prev => prev.map(s => s.id === draggingId ? { ...s, xRatio, yRatio } : s));
+    setLocalStickers(prev => prev.map(s => s.id === draggingId ? { ...s, xRatio, yRatio } : s));
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -88,9 +88,9 @@ export function LiveCanvas({ page, booklet, maxRenderSize = 600, onBgTap, classN
       e.currentTarget.releasePointerCapture(e.pointerId);
       
       // Persist the change
-      const finalStamp = localStamps.find(s => s.id === draggingId);
-      if (finalStamp) {
-        movePageStamp(draggingId, finalStamp.xRatio, finalStamp.yRatio);
+      const finalSticker = localStickers.find(s => s.id === draggingId);
+      if (finalSticker) {
+        movePageSticker(draggingId, finalSticker.xRatio, finalSticker.yRatio);
       }
       
       setDraggingId(null);

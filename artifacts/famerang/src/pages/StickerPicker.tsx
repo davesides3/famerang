@@ -1,29 +1,29 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useRoute, useLocation } from 'wouter';
-import { useStampPackages, useStamps, usePageWithStamps, useFirstStampUrls, placeStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
+import { useStickerPacks, useStickers, usePageWithStickers, useFirstStickerUrls, placeSticker, MAX_STICKERS_PER_PAGE } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 
 /**
- * Full-screen stamp selection view.
+ * Full-screen sticker selection view.
  *
  * Layout: a non-scrolling top area (title + optional limit warning + horizontal
- * scrolling package-tab bar) above a separately scrollable stamp grid. This
+ * scrolling package-tab bar) above a separately scrollable sticker grid. This
  * avoids the accordion's hidden-state confusion while keeping the number of
- * visible stamps manageable at one package at a time.
+ * visible stickers manageable at one package at a time.
  */
-export function StampPicker() {
-  const [, params] = useRoute('/booklet/:bookletId/page/:pageId/stamps');
+export function StickerPicker() {
+  const [, params] = useRoute('/booklet/:bookletId/page/:pageId/stickers');
   const [, setLocation] = useLocation();
 
   const bookletId = params?.bookletId;
   const pageId = params?.pageId;
 
-  const page = usePageWithStamps(pageId);
-  const stampPackages = useStampPackages();
+  const page = usePageWithStickers(pageId);
+  const stickerPacks = useStickerPacks();
 
   const [selectedPkgId, setSelectedPkgId] = useState<string | null>(
-    () => localStorage.getItem('famerang:lastStampPackId')
+    () => localStorage.getItem('famerang:lastStickerPackId')
   );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -31,14 +31,14 @@ export function StampPicker() {
   // Auto-select the first package once packages load (or whenever the
   // selection becomes stale because a package was deleted).
   useEffect(() => {
-    if (!stampPackages || stampPackages.length === 0) return;
-    const still = selectedPkgId && stampPackages.some(p => p.id === selectedPkgId);
+    if (!stickerPacks || stickerPacks.length === 0) return;
+    const still = selectedPkgId && stickerPacks.some(p => p.id === selectedPkgId);
     if (!still) {
-      const fallback = stampPackages[0].id;
+      const fallback = stickerPacks[0].id;
       setSelectedPkgId(fallback);
-      localStorage.setItem('famerang:lastStampPackId', fallback);
+      localStorage.setItem('famerang:lastStickerPackId', fallback);
     }
-  }, [stampPackages, selectedPkgId]);
+  }, [stickerPacks, selectedPkgId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -52,26 +52,26 @@ export function StampPicker() {
     return () => document.removeEventListener('mousedown', handler);
   }, [dropdownOpen]);
 
-  const packageIds = stampPackages?.map(p => p.id) ?? [];
-  const firstStampUrls = useFirstStampUrls(packageIds);
+  const packageIds = stickerPacks?.map(p => p.id) ?? [];
+  const firstStickerUrls = useFirstStickerUrls(packageIds);
 
-  const stampsInSelected = useStamps(selectedPkgId || undefined);
-  const stampLimitReached = (page?.stamps.length ?? 0) >= MAX_STAMPS_PER_PAGE;
+  const stickersInSelected = useStickers(selectedPkgId || undefined);
+  const stickerLimitReached = (page?.stickers.length ?? 0) >= MAX_STICKERS_PER_PAGE;
 
-  const selectedPkg = stampPackages?.find(p => p.id === selectedPkgId);
+  const selectedPkg = stickerPacks?.find(p => p.id === selectedPkgId);
 
   const returnToEditor = () => setLocation(`/booklet/${bookletId}/page/${pageId}`);
   useHeaderClose(returnToEditor);
 
-  const handleStampTap = async (stampId: string) => {
-    if (!pageId || stampLimitReached) return;
-    await placeStamp(pageId, stampId, 0.15, 0.15);
+  const handleStickerTap = async (stickerId: string) => {
+    if (!pageId || stickerLimitReached) return;
+    await placeSticker(pageId, stickerId, 0.15, 0.15);
     returnToEditor();
   };
 
   const handleSelectPack = (pkgId: string) => {
     setSelectedPkgId(pkgId);
-    localStorage.setItem('famerang:lastStampPackId', pkgId);
+    localStorage.setItem('famerang:lastStickerPackId', pkgId);
     setDropdownOpen(false);
   };
 
@@ -82,16 +82,16 @@ export function StampPicker() {
 
       {/* ── Non-scrolling header ─────────────────────────────────────────── */}
       <div className="shrink-0 px-4 pt-4 pb-0 bg-background border-b-2 border-border">
-        <h1 className="text-2xl font-serif font-bold text-foreground mb-3">Choose a Stamp</h1>
+        <h1 className="text-2xl font-serif font-bold text-foreground mb-3">Choose a Sticker</h1>
 
-        {stampLimitReached && (
+        {stickerLimitReached && (
           <div className="text-sm font-bold text-destructive text-center border-2 border-destructive/20 bg-destructive/10 rounded-xl p-3 mb-3">
-            Max {MAX_STAMPS_PER_PAGE} stamps per page reached. Remove one to add another.
+            Max {MAX_STICKERS_PER_PAGE} stickers per page reached. Remove one to add another.
           </div>
         )}
 
         {/* Custom pack dropdown with thumbnails */}
-        {stampPackages && stampPackages.length > 0 && (
+        {stickerPacks && stickerPacks.length > 0 && (
           <div className="relative mb-3" ref={dropdownRef}>
             {/* Trigger button */}
             <button
@@ -101,9 +101,9 @@ export function StampPicker() {
             >
               {/* Selected pack thumbnail */}
               <span className="shrink-0 w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden">
-                {selectedPkg && firstStampUrls?.[selectedPkg.id] ? (
+                {selectedPkg && firstStickerUrls?.[selectedPkg.id] ? (
                   <img
-                    src={firstStampUrls[selectedPkg.id]}
+                    src={firstStickerUrls[selectedPkg.id]}
                     alt=""
                     className="w-full h-full object-contain p-0.5"
                   />
@@ -118,7 +118,7 @@ export function StampPicker() {
             {/* Dropdown list */}
             {dropdownOpen && (
               <ul className="absolute z-50 mt-1 w-full rounded-xl border-2 border-border bg-background shadow-lg overflow-hidden">
-                {stampPackages.map((pkg) => (
+                {stickerPacks.map((pkg) => (
                   <li key={pkg.id}>
                     <button
                       type="button"
@@ -127,9 +127,9 @@ export function StampPicker() {
                     >
                       {/* Pack thumbnail */}
                       <span className="shrink-0 w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden">
-                        {firstStampUrls?.[pkg.id] ? (
+                        {firstStickerUrls?.[pkg.id] ? (
                           <img
-                            src={firstStampUrls[pkg.id]}
+                            src={firstStickerUrls[pkg.id]}
                             alt=""
                             className="w-full h-full object-contain p-0.5"
                           />
@@ -151,9 +151,9 @@ export function StampPicker() {
       {selectedPkg && (
         <div className="shrink-0 flex items-center gap-2.5 px-4 py-2 bg-muted/40 border-b border-border">
           <span className="shrink-0 w-8 h-8 rounded-lg border border-border bg-white flex items-center justify-center overflow-hidden">
-            {firstStampUrls?.[selectedPkg.id] ? (
+            {firstStickerUrls?.[selectedPkg.id] ? (
               <img
-                src={firstStampUrls[selectedPkg.id]}
+                src={firstStickerUrls[selectedPkg.id]}
                 alt=""
                 className="w-full h-full object-contain p-0.5"
               />
@@ -165,28 +165,28 @@ export function StampPicker() {
         </div>
       )}
 
-      {/* ── Scrollable stamp grid ─────────────────────────────────────────── */}
+      {/* ── Scrollable sticker grid ─────────────────────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 pb-safe">
-        {(!stampPackages || stampPackages.length === 0) ? (
+        {(!stickerPacks || stickerPacks.length === 0) ? (
           <div className="flex-1 flex items-center justify-center text-center text-muted-foreground font-bold py-12">
-            No stamp packs yet. Add one from the Stamp Library.
+            No sticker packs yet. Add one from the Sticker Library.
           </div>
-        ) : stampsInSelected && stampsInSelected.length === 0 ? (
+        ) : stickersInSelected && stickersInSelected.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground font-bold">
             This pack is empty.
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-3">
-            {stampsInSelected?.map((stamp) => (
+            {stickersInSelected?.map((sticker) => (
               <button
-                key={stamp.id}
-                disabled={stampLimitReached}
+                key={sticker.id}
+                disabled={stickerLimitReached}
                 className="aspect-square bg-white border-2 border-border rounded-xl p-2 hover:border-primary hover:-translate-y-1 transition-all flex items-center justify-center disabled:opacity-30 disabled:hover:translate-y-0 disabled:hover:border-border disabled:cursor-not-allowed"
-                onClick={() => handleStampTap(stamp.id)}
+                onClick={() => handleStickerTap(sticker.id)}
               >
                 <img
-                  src={stamp.pngDataUrl}
-                  alt={stamp.name}
+                  src={sticker.pngDataUrl}
+                  alt={sticker.name}
                   className="max-w-full max-h-full object-contain drop-shadow-sm"
                 />
               </button>

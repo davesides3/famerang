@@ -16,7 +16,7 @@ import {
   Images,
   Trash2,
 } from 'lucide-react';
-import { useBooklet, usePagesWithStamps, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
+import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
@@ -26,7 +26,7 @@ import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhot
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { TRIM_SIZES, FONT_FAMILY_OPTIONS, getTrimSize } from '@/lib/types';
-import type { PageWithStamps, TrimSizeKey } from '@/lib/types';
+import type { PageWithStickers, TrimSizeKey } from '@/lib/types';
 import { PagePreview } from '@/pages/PagePreview';
 import { cn, formatEstimatedSize } from '@/lib/utils';
 import famerangLogo from '@/assets/famerang-logo.png';
@@ -65,7 +65,7 @@ export function BookletHub() {
   const id = params?.id;
 
   const booklet = useBooklet(id);
-  const serverPages = usePagesWithStamps(id);
+  const serverPages = usePagesWithStickers(id);
   const { toast } = useToast();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -98,11 +98,11 @@ export function BookletHub() {
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
 
   // Local state so pages can be reordered by dragging directly in the list.
-  const [pages, setPages] = useState<PageWithStamps[]>(serverPages || []);
+  const [pages, setPages] = useState<PageWithStickers[]>(serverPages || []);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const draggedIdxRef = useRef<number | null>(null);
-  const pagesRef = useRef<PageWithStamps[]>(pages);
+  const pagesRef = useRef<PageWithStickers[]>(pages);
 
   useEffect(() => {
     pagesRef.current = pages;
@@ -116,7 +116,7 @@ export function BookletHub() {
 
   // While the Export or Settings sub-view is open, the shared header's nav
   // button becomes a "Close" action that returns to this page-list screen
-  // instead of the usual Stamps/Booklets link -- gives every overlay-style
+  // instead of the usual Stickers/Booklets link -- gives every overlay-style
   // view one consistent header.
   useHeaderClose(
     isExportOpen
@@ -620,12 +620,12 @@ export function BookletHub() {
                         <p className="font-bold text-foreground line-clamp-1">
                           {page.textContent?.trim() || <span className="text-muted-foreground/60 italic">Untitled page</span>}
                         </p>
-                        {page.stamps.length > 0 && (
+                        {page.stickers.length > 0 && (
                           <div className="flex items-center gap-1 mt-1 -space-x-2">
-                            {page.stamps.slice(0, 5).map((s) => (
+                            {page.stickers.slice(0, 5).map((s) => (
                               <img
                                 key={s.id}
-                                src={s.stamp.pngDataUrl}
+                                src={s.sticker.pngDataUrl}
                                 draggable={false}
                                 className="w-5 h-5 rounded-full border border-white bg-white/50"
                               />

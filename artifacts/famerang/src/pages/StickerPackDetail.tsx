@@ -2,20 +2,20 @@ import React, { useRef, useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { PackagePlus, Trash2, Check, X, Pencil, Download, FileText, Info } from 'lucide-react';
 import {
-  useStampPackages, renameStampPackage,
-  useStamps, addStamp, deleteStamp, getStampUsage, StampInUseError,
+  useStickerPacks, renameStickerPack,
+  useStickers, addSticker, deleteSticker, getStickerUsage, StickerInUseError,
 } from '@/lib/hooks';
-import { exportStampPackageZip } from '@/lib/stampPackZip';
-import { generateStampSheetAssets } from '@/lib/stampSheet';
+import { exportStickerPackZip } from '@/lib/stickerPackZip';
+import { generateStickerSheetAssets } from '@/lib/stickerSheet';
 import { shareOrDownloadFile } from '@/lib/share';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import famerangLogo from '@/assets/famerang-logo.png';
-import { StampPackageInfoDialog } from './StampPackageInfoDialog';
+import { StickerPackInfoDialog } from './StickerPackInfoDialog';
 
 /** Compact icon-over-label action button, matching the "Add Page" toolbar
- * button style on the Booklet Hub, so Add Stamps can sit on the same line
+ * button style on the Booklet Hub, so Add Stickers can sit on the same line
  * as Rename and Export in mobile portrait view. */
 function ToolbarAction({
   icon,
@@ -42,21 +42,21 @@ function ToolbarAction({
 }
 
 /**
- * Full-screen view of a single stamp package's stamps, taking over the
+ * Full-screen view of a single sticker package's stickers, taking over the
  * whole screen -- mirroring how tapping a booklet opens the full-screen
  * Booklet Hub instead of expanding inline. Other packages are not visible
  * here; the header's Close action returns to the package list.
  */
-export function StampPackageDetail() {
-  const [, params] = useRoute('/stamps/:packageId');
+export function StickerPackDetail() {
+  const [, params] = useRoute('/stickers/:packageId');
   const [, setLocation] = useLocation();
   const packageId = params?.packageId;
 
-  const packages = useStampPackages();
+  const packages = useStickerPacks();
   const pkg = packages?.find((p) => p.id === packageId);
-  const stamps = useStamps(packageId);
+  const stickers = useStickers(packageId);
 
-  const returnToLibrary = () => setLocation('/stamps');
+  const returnToLibrary = () => setLocation('/stickers');
   useHeaderClose(returnToLibrary);
 
   const [isRenaming, setIsRenaming] = useState(false);
@@ -74,50 +74,50 @@ export function StampPackageDetail() {
   const handleRename = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!packageId || !renameName.trim()) return;
-    await renameStampPackage(packageId, renameName.trim());
+    await renameStickerPack(packageId, renameName.trim());
     setIsRenaming(false);
   };
 
   const handleExport = async () => {
     if (!packageId || !pkg) return;
-    const blob = await exportStampPackageZip(packageId);
+    const blob = await exportStickerPackZip(packageId);
     const safeName = pkg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     await shareOrDownloadFile(blob, `famerang-${safeName}.zip`, 'application/zip');
   };
 
   const handlePdf = async () => {
-    if (!pkg || !stamps || stamps.length === 0) return;
-    const { pdfBlob } = await generateStampSheetAssets(pkg, stamps);
+    if (!pkg || !stickers || stickers.length === 0) return;
+    const { pdfBlob } = await generateStickerSheetAssets(pkg, stickers);
     const safeName = pkg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    await shareOrDownloadFile(pdfBlob, `${safeName}-stamp-sheet.pdf`, 'application/pdf');
+    await shareOrDownloadFile(pdfBlob, `${safeName}-sticker-sheet.pdf`, 'application/pdf');
   };
 
-  const handleUploadStamps = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUploadStickers = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!packageId) return;
     const files = Array.from(e.target.files || []);
     for (const file of files) {
       // clean name by removing extension
       const name = file.name.replace(/\.[^/.]+$/, "");
-      await addStamp(packageId, file, name);
+      await addSticker(packageId, file, name);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDeleteStamp = async (id: string, name: string) => {
-    const usageCount = await getStampUsage(id);
+  const handleDeleteSticker = async (id: string, name: string) => {
+    const usageCount = await getStickerUsage(id);
     const message = usageCount > 0
-      ? `Delete stamp "${name}"? It is used on ${usageCount} page${usageCount === 1 ? '' : 's'}.`
-      : `Delete stamp "${name}"?`;
+      ? `Delete sticker "${name}"? It is used on ${usageCount} page${usageCount === 1 ? '' : 's'}.`
+      : `Delete sticker "${name}"?`;
     if (!confirm(message)) return;
     try {
-      await deleteStamp(id, { force: usageCount > 0 });
+      await deleteSticker(id, { force: usageCount > 0 });
     } catch (err) {
       // Usage may have changed between the check and the delete call
-      // (e.g. the stamp was just placed on a page); fall back to a
+      // (e.g. the sticker was just placed on a page); fall back to a
       // second confirmation with the up-to-date count.
-      if (err instanceof StampInUseError) {
-        if (confirm(`This stamp is used on ${err.usageCount} page(s). Delete it anyway?`)) {
-          await deleteStamp(id, { force: true });
+      if (err instanceof StickerInUseError) {
+        if (confirm(`This sticker is used on ${err.usageCount} page(s). Delete it anyway?`)) {
+          await deleteSticker(id, { force: true });
         }
       }
     }
@@ -133,7 +133,7 @@ export function StampPackageDetail() {
               `sticky` inside it) so it can never be scrolled behind or
               have scrolled rows bleed through it -- it's simply a fixed
               top bar within this full-screen overlay, and only the
-              stamp list below scrolls. Styled to match the top of the
+              sticker list below scrolls. Styled to match the top of the
               Booklet Hub's page list: title on its own line, then a
               grouped action row beneath a bottom border. */}
           <div className="shrink-0 px-4 pt-4 pb-3 bg-background border-b-2 border-border" data-testid="package-detail-header">
@@ -160,18 +160,18 @@ export function StampPackageDetail() {
             </div>
 
             <div className="flex items-center justify-between gap-1 mt-1">
-              <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stamps" onClick={() => fileInputRef.current?.click()} />
+              <ToolbarAction icon={<PackagePlus className="w-5 h-5" />} label="Add Stickers" onClick={() => fileInputRef.current?.click()} />
               <ToolbarAction icon={<Pencil className="w-5 h-5" />} label="Rename" onClick={openRename} />
               <ToolbarAction icon={<Download className="w-5 h-5" />} label="Export" onClick={handleExport} />
-              <ToolbarAction icon={<FileText className="w-5 h-5" />} label="PDF" onClick={handlePdf} disabled={!stamps || stamps.length === 0} />
+              <ToolbarAction icon={<FileText className="w-5 h-5" />} label="PDF" onClick={handlePdf} disabled={!stickers || stickers.length === 0} />
               <ToolbarAction icon={<Info className="w-5 h-5" />} label="Info" onClick={() => setIsInfoOpen(true)} />
             </div>
           </div>
 
-          <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStamps} />
+          <input type="file" multiple accept="image/png,image/webp" ref={fileInputRef} className="hidden" onChange={handleUploadStickers} />
 
           {isInfoOpen && (
-            <StampPackageInfoDialog
+            <StickerPackInfoDialog
               pkg={pkg}
               open={isInfoOpen}
               onClose={() => setIsInfoOpen(false)}
@@ -179,7 +179,7 @@ export function StampPackageDetail() {
           )}
 
           <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 pb-safe">
-            {stamps?.length === 0 ? (
+            {stickers?.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border rounded-xl">
                 <img src={famerangLogo} alt="" className="w-[72px] h-[72px] object-contain opacity-30 mb-3" />
                 <p className="font-bold text-muted-foreground">This pack is empty.</p>
@@ -187,16 +187,16 @@ export function StampPackageDetail() {
               </div>
             ) : (
               <div className="flex flex-col gap-3">
-                {stamps?.map(stamp => (
-                  <PaperCard key={stamp.id} className="flex items-center gap-3 p-3">
+                {stickers?.map(sticker => (
+                  <PaperCard key={sticker.id} className="flex items-center gap-3 p-3">
                     <div className="shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-white border-2 border-border flex items-center justify-center p-1">
-                      <img src={stamp.pngDataUrl} alt={stamp.name} className="max-w-full max-h-full object-contain" />
+                      <img src={sticker.pngDataUrl} alt={sticker.name} className="max-w-full max-h-full object-contain" />
                     </div>
-                    <p className="min-w-0 flex-1 font-bold text-foreground truncate">{stamp.name}</p>
+                    <p className="min-w-0 flex-1 font-bold text-foreground truncate">{sticker.name}</p>
                     <button
                       type="button"
-                      aria-label={`Delete stamp ${stamp.name}`}
-                      onClick={() => handleDeleteStamp(stamp.id, stamp.name)}
+                      aria-label={`Delete sticker ${sticker.name}`}
+                      onClick={() => handleDeleteSticker(sticker.id, sticker.name)}
                       className="shrink-0 w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />

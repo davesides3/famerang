@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BookOpen, Stamp, X } from 'lucide-react';
+import { BookOpen, Sticker, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import famerangLogo from '@/assets/famerang-logo.png';
 import { LandscapeGuard } from '@/components/layout/LandscapeGuard';
@@ -21,7 +21,7 @@ const HeaderOverrideContext = createContext<HeaderOverrideApi | null>(null);
 
 /**
  * Lets a page temporarily replace the shared header's right-side nav button
- * (normally "Stamps" on Home / "Booklets" elsewhere) with a "Close" action,
+ * (normally "Stickers" on Home / "Booklets" elsewhere) with a "Close" action,
  * so overlay-style views (Export, full-screen Preview) get one consistent
  * header instead of a bespoke local one. Pass `null` when there is nothing
  * to close, e.g. before the overlay is open.
@@ -97,9 +97,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </button>
     </>
   ) : location === '/' ? (
-    <Link href="/stamps" className={cn(navButtonClasses, location.startsWith('/stamps') && 'bg-muted text-foreground')} data-testid="header-stamps">
-      <Stamp className="w-5 h-5" />
-      Stamps
+    <Link href="/stickers" className={cn(navButtonClasses, location.startsWith('/stickers') && 'bg-muted text-foreground')} data-testid="header-stickers">
+      <Sticker className="w-5 h-5" />
+      Stickers
     </Link>
   ) : (
     <Link href="/" className={navButtonClasses} data-testid="header-booklets">

@@ -1,32 +1,32 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
-import { Plus, Stamp, Check, X, Upload, AlertCircle } from 'lucide-react';
+import { Plus, Sticker, Check, X, Upload, AlertCircle } from 'lucide-react';
 import {
-  useStampPackages, createStampPackage, reorderStampPackages, deleteStampPackage, getStampPackageUsage, StampInUseError,
+  useStickerPacks, createStickerPack, reorderStickerPacks, deleteStickerPack, getStickerPackUsage, StickerInUseError,
 } from '@/lib/hooks';
-import { importStampPackageZip } from '@/lib/stampPackZip';
+import { importStickerPackZip } from '@/lib/stickerPackZip';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
-import { StampPackageRow } from '@/components/stamps/StampPackageRow';
-import type { StampPackage } from '@/lib/types';
+import { StickerPackRow } from '@/components/stickers/StickerPackRow';
+import type { StickerPack } from '@/lib/types';
 
 /**
- * Vertical list of stamp packages, mirroring the Booklet Hub's list of
+ * Vertical list of sticker packages, mirroring the Booklet Hub's list of
  * booklets. Tapping a package navigates to a dedicated full-screen detail
- * view (StampPackageDetail) rather than expanding inline, so only one
- * package's stamps are visible at a time.
+ * view (StickerPackDetail) rather than expanding inline, so only one
+ * package's stickers are visible at a time.
  */
-export function StampsLibrary() {
-  const serverPackages = useStampPackages();
+export function StickersLibrary() {
+  const serverPackages = useStickerPacks();
   const [, setLocation] = useLocation();
 
   // Local state so packages can be reordered by dragging directly in the
   // list, mirroring the page-reorder pattern in the Booklet Hub.
-  const [packages, setPackages] = useState<StampPackage[]>(serverPackages || []);
+  const [packages, setPackages] = useState<StickerPack[]>(serverPackages || []);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const draggedIdxRef = useRef<number | null>(null);
-  const packagesRef = useRef<StampPackage[]>(packages);
+  const packagesRef = useRef<StickerPack[]>(packages);
 
   useEffect(() => {
     packagesRef.current = packages;
@@ -48,10 +48,10 @@ export function StampsLibrary() {
   const handleCreatePackage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPkgName.trim()) return;
-    const pkg = await createStampPackage(newPkgName.trim());
+    const pkg = await createStickerPack(newPkgName.trim());
     setNewPkgName('');
     setIsCreatingPkg(false);
-    setLocation(`/stamps/${pkg.id}`);
+    setLocation(`/stickers/${pkg.id}`);
   };
 
   const handleImportPackageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,10 +60,10 @@ export function StampsLibrary() {
     try {
       setImportError(null);
       setIsImporting(true);
-      const pkg = await importStampPackageZip(file, { mode: 'new' });
-      setLocation(`/stamps/${pkg.id}`);
+      const pkg = await importStickerPackZip(file, { mode: 'new' });
+      setLocation(`/stickers/${pkg.id}`);
     } catch (err: any) {
-      setImportError(err.message || 'Import failed. The file might not be a valid stamp pack.');
+      setImportError(err.message || 'Import failed. The file might not be a valid sticker pack.');
     } finally {
       setIsImporting(false);
       if (packFileInputRef.current) packFileInputRef.current.value = '';
@@ -102,7 +102,7 @@ export function StampsLibrary() {
     window.removeEventListener('pointerup', handlePointerUp);
     draggedIdxRef.current = null;
     setDraggedIdx(null);
-    await reorderStampPackages(packagesRef.current.map((p) => p.id));
+    await reorderStickerPacks(packagesRef.current.map((p) => p.id));
   };
 
   const handleGripPointerDown = (e: React.PointerEvent, index: number) => {
@@ -112,19 +112,19 @@ export function StampsLibrary() {
     window.addEventListener('pointerup', handlePointerUp);
   };
 
-  const handleDeletePackage = async (pkg: StampPackage) => {
-    const usage = await getStampPackageUsage(pkg.id);
-    const message = usage.stampCount > 0
-      ? `Delete package "${pkg.name}"? There ${usage.stampCount === 1 ? 'is' : 'are'} ${usage.stampCount} stamp${usage.stampCount === 1 ? '' : 's'} used across ${usage.pageCount} page${usage.pageCount === 1 ? '' : 's'}.`
+  const handleDeletePackage = async (pkg: StickerPack) => {
+    const usage = await getStickerPackUsage(pkg.id);
+    const message = usage.stickerCount > 0
+      ? `Delete package "${pkg.name}"? There ${usage.stickerCount === 1 ? 'is' : 'are'} ${usage.stickerCount} sticker${usage.stickerCount === 1 ? '' : 's'} used across ${usage.pageCount} page${usage.pageCount === 1 ? '' : 's'}.`
       : `Delete package "${pkg.name}"?`;
     if (!confirm(message)) return;
     try {
-      await deleteStampPackage(pkg.id, { force: usage.stampCount > 0 });
+      await deleteStickerPack(pkg.id, { force: usage.stickerCount > 0 });
     } catch (err) {
-      if (err instanceof StampInUseError) {
+      if (err instanceof StickerInUseError) {
         // Fallback in case usage changed between the check and the delete.
-        if (confirm(`Cannot delete: Stamps from this package are used on ${err.usageCount} page(s). Force delete anyway (will remove them from pages)?`)) {
-          await deleteStampPackage(pkg.id, { force: true });
+        if (confirm(`Cannot delete: Stickers from this package are used on ${err.usageCount} page(s). Force delete anyway (will remove them from pages)?`)) {
+          await deleteStickerPack(pkg.id, { force: true });
         }
       }
     }
@@ -134,8 +134,8 @@ export function StampsLibrary() {
     <div className="flex flex-col gap-6 w-full animate-in fade-in">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <Stamp className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-serif font-bold text-foreground">Stamp Library</h1>
+          <Sticker className="w-8 h-8 text-primary" />
+          <h1 className="text-3xl font-serif font-bold text-foreground">Sticker Library</h1>
         </div>
         <div className="flex gap-2">
           <PaperButton
@@ -181,24 +181,24 @@ export function StampsLibrary() {
 
       {packages.length === 0 ? (
         <div className="py-12 text-center text-muted-foreground font-bold border-2 border-dashed border-border rounded-xl">
-          Create a stamp pack to get started.
+          Create a sticker pack to get started.
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           {packages.map((pkg, i) => (
-            <StampPackageRow
+            <StickerPackRow
               key={pkg.id}
               pkg={pkg}
               isExpanded={false}
               isDragging={draggedIdx === i}
-              onToggle={() => setLocation(`/stamps/${pkg.id}`)}
+              onToggle={() => setLocation(`/stickers/${pkg.id}`)}
               onGripPointerDown={(e) => handleGripPointerDown(e, i)}
               onDelete={() => handleDeletePackage(pkg)}
               rowRef={(el) => {
                 if (el) rowRefs.current.set(i, el);
                 else rowRefs.current.delete(i);
               }}
-              testId={`stamp-package-row-${i}`}
+              testId={`sticker-package-row-${i}`}
             />
           ))}
         </div>

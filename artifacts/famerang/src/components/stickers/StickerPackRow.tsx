@@ -1,32 +1,32 @@
 import React from 'react';
 import { GripVertical, Trash2 } from 'lucide-react';
 import { PaperCard } from '@/components/ui/PaperCard';
-import { useStamps } from '@/lib/hooks';
+import { useStickers } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
-import type { StampPackage } from '@/lib/types';
+import type { StickerPack } from '@/lib/types';
 
 interface Props {
-  pkg: StampPackage;
+  pkg: StickerPack;
   isExpanded: boolean;
   onToggle: () => void;
-  /** Present only where reordering is allowed (the Stamp Library page).
-   * Omitted in read-only contexts like the full-screen stamp picker. */
+  /** Present only where reordering is allowed (the Sticker Library page).
+   * Omitted in read-only contexts like the full-screen sticker picker. */
   onGripPointerDown?: (e: React.PointerEvent) => void;
   /** Present only where deleting a whole package from the row is allowed
-   * (the Stamp Library page). Omitted in read-only contexts like the
-   * full-screen stamp picker. */
+   * (the Sticker Library page). Omitted in read-only contexts like the
+   * full-screen sticker picker. */
   onDelete?: () => void;
   isDragging?: boolean;
   rowRef?: (el: HTMLDivElement | null) => void;
   testId?: string;
 }
 
-/** A single stamp-package row, styled to parallel a page row in the
+/** A single sticker-package row, styled to parallel a page row in the
  * Booklet Hub: an optional drag handle on the left, the package name on its
- * own line with up to 5 of its stamps previewed on a second line beneath
+ * own line with up to 5 of its stickers previewed on a second line beneath
  * it, and an optional delete button on the right. Tapping the row (outside
  * the drag handle and delete button) expands/collapses it. */
-export function StampPackageRow({
+export function StickerPackRow({
   pkg,
   isExpanded,
   onToggle,
@@ -36,8 +36,8 @@ export function StampPackageRow({
   rowRef,
   testId,
 }: Props) {
-  const stamps = useStamps(pkg.id);
-  const preview = stamps?.slice(0, 5) ?? [];
+  const stickers = useStickers(pkg.id);
+  const preview = stickers?.slice(0, 5) ?? [];
 
   return (
     <div ref={rowRef} className={cn('transition-opacity', isDragging && 'opacity-50 z-10')}>
@@ -76,10 +76,10 @@ export function StampPackageRow({
             {preview.length === 0 ? (
               <span className="text-xs text-muted-foreground/60 italic">Empty</span>
             ) : (
-              preview.map((stamp) => (
+              preview.map((sticker) => (
                 <img
-                  key={stamp.id}
-                  src={stamp.pngDataUrl}
+                  key={sticker.id}
+                  src={sticker.pngDataUrl}
                   alt=""
                   draggable={false}
                   className="w-6 h-6 rounded-lg border-2 border-border bg-white object-contain p-0.5"

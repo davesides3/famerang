@@ -1,12 +1,12 @@
 import JSZip from 'jszip';
 import { db } from './db';
-import type { Stamp, StampPackage } from './types';
+import type { Sticker, StickerPack } from './types';
 
 // ─── Versioning ──────────────────────────────────────────────────────────────
 //
 // Bump SEED_VERSION whenever you:
 //   • add a new default pack, OR
-//   • update an existing one (new/changed stamps, updated metadata).
+//   • update an existing one (new/changed stickers, updated metadata).
 //
 // Any device whose stored seed version is lower than this will re-seed on
 // the next app launch.  User-created packs are never touched.
@@ -39,23 +39,23 @@ const DEFAULT_PACKS: Array<{ id: string; asset: string }> = [
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ManifestStamp {
+interface ManifestSticker {
   id: string;
   name: string;
   contentHash: string;
   filename: string;
 }
 
-interface StampPackManifestV2 {
+interface StickerPackManifestV2 {
   version: 2;
-  package: StampPackage;
-  stamps: ManifestStamp[];
+  package: StickerPack;
+  stickers: ManifestSticker[];
 }
 
 /** Reconstructed payload after parsing either format. */
 interface SeedPayload {
-  package: StampPackage;
-  stamps: Stamp[];
+  package: StickerPack;
+  stickers: Sticker[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -77,9 +77,9 @@ async function fetchPayload(assetPath: string): Promise<SeedPayload> {
   // ── v2 format: manifest.json + individual PNG entries ──────────────────
   const manifestEntry = zip.file('manifest.json');
   if (manifestEntry) {
-    const manifest = JSON.parse(await manifestEntry.async('string')) as StampPackManifestV2;
-    const stamps: Stamp[] = await Promise.all(
-      manifest.stamps.map(async (ms) => {
+    const manifest = JSON.parse(await manifestEntry.async('string')) as StickerPackManifestV2;
+    const stickers: Sticker[] = await Promise.all(
+      manifest.stickers.map(async (ms) => {
         const entry = zip.file(ms.filename);
         if (!entry) throw new Error(`${assetPath}: missing image entry "${ms.filename}"`);
         const bytes = await entry.async('uint8array');
@@ -92,28 +92,28 @@ async function fetchPayload(assetPath: string): Promise<SeedPayload> {
         };
       }),
     );
-    return { package: manifest.package, stamps };
+    return { package: manifest.package, stickers };
   }
 
-  // ── v1 legacy format: single famerang-stamp-pack.json with base64 ──────
+  // ── v1 legacy format: single famerang-sticker-pack.json with base64 ──────
   const legacyEntry =
-    zip.file('famerang-stamp-pack.json') ?? zip.file(/\.json$/i)[0] ?? null;
+    zip.file('famerang-sticker-pack.json') ?? zip.file(/\.json$/i)[0] ?? null;
   if (!legacyEntry) throw new Error(`${assetPath}: unrecognised zip format`);
   const payload = JSON.parse(await legacyEntry.async('string')) as {
-    package: StampPackage;
-    stamps: Stamp[];
+    package: StickerPack;
+    stickers: Sticker[];
   };
-  return { package: payload.package, stamps: payload.stamps };
+  return { package: payload.package, stickers: payload.stickers };
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Seeds the default stamp packages into the local IndexedDB.
+ * Seeds the default sticker packages into the local IndexedDB.
  *
  * Behaviour:
- *  • First run  – inserts every default pack with its fixed ID and stamps.
- *  • Re-seed    – when SEED_VERSION is bumped, replaces the stamps of any pack
+ *  • First run  – inserts every default pack with its fixed ID and stickers.
+ *  • Re-seed    – when SEED_VERSION is bumped, replaces the stickers of any pack
  *                 that already exists (preserving the pack name + sortOrder the
  *                 user may have changed) and inserts packs that are new.
  *  • No-op      – returns immediately if the stored seed version is current.
@@ -126,7 +126,7 @@ export async function seedDefaultPacks(): Promise<void> {
   const stored = parseInt(localStorage.getItem(SEED_VERSION_KEY) ?? '0', 10);
   if (stored >= SEED_VERSION) return;
 
-  const existingPackages = await db.stampPackages.toArray();
+  const existingPackages = await db.stickerPacks.toArray();
   const existingIds = new Set(existingPackages.map((p) => p.id));
   const maxOrder = existingPackages.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
   let nextOrder = maxOrder + 1;
@@ -136,26 +136,26 @@ export async function seedDefaultPacks(): Promise<void> {
       const payload = await fetchPayload(asset);
 
       if (existingIds.has(id)) {
-        // Pack already in DB (from a previous seed).  Replace its stamps so
+        // Pack already in DB (from a previous seed).  Replace its stickers so
         // any updates you made to the zip are reflected, but leave the pack
         // record itself alone so the user's renamed/reordered version is kept.
-        await db.transaction('rw', db.stamps, async () => {
-          await db.stamps.where('packageId').equals(id).delete();
-          const stamps: Stamp[] = payload.stamps.map((s) => ({ ...s, packageId: id }));
-          if (stamps.length) await db.stamps.bulkAdd(stamps);
+        await db.transaction('rw', db.stickers, async () => {
+          await db.stickers.where('packageId').equals(id).delete();
+          const stickers: Sticker[] = payload.stickers.map((s) => ({ ...s, packageId: id }));
+          if (stickers.length) await db.stickers.bulkAdd(stickers);
         });
       } else {
         // Brand-new pack: insert at the bottom of the current list.
-        const pkg: StampPackage = {
+        const pkg: StickerPack = {
           ...payload.package,
           id,
           sortOrder: nextOrder++,
           createdAt: payload.package.createdAt ?? Date.now(),
         };
-        const stamps: Stamp[] = payload.stamps.map((s) => ({ ...s, packageId: id }));
-        await db.transaction('rw', db.stampPackages, db.stamps, async () => {
-          await db.stampPackages.add(pkg);
-          if (stamps.length) await db.stamps.bulkAdd(stamps);
+        const stickers: Sticker[] = payload.stickers.map((s) => ({ ...s, packageId: id }));
+        await db.transaction('rw', db.stickerPacks, db.stickers, async () => {
+          await db.stickerPacks.add(pkg);
+          if (stickers.length) await db.stickers.bulkAdd(stickers);
         });
       }
     } catch (err) {

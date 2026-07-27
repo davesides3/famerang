@@ -1,7 +1,7 @@
 import JSZip from 'jszip';
 import { canvasToBlob, renderPageToCanvas } from './compositing';
 import { getTrimSize } from './types';
-import type { Booklet, PageWithStamps } from './types';
+import type { Booklet, PageWithStickers } from './types';
 
 const EXPORT_QUALITY = 0.9;
 
@@ -35,7 +35,7 @@ export function isLargePhotoExport(booklet: Booklet, pageCount: number): boolean
  */
 export async function renderPagesAsJpegBlobs(
   booklet: Booklet,
-  pages: PageWithStamps[],
+  pages: PageWithStickers[],
 ): Promise<Blob[]> {
   const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
   const blobs: Blob[] = [];

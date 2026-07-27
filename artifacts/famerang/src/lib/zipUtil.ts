@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 
 /**
  * Reads the JSON payload out of a file produced by one of Famerang's export
- * flows (full backup, booklet backup, or stamp pack export). All of these
+ * flows (full backup, booklet backup, or sticker pack export). All of these
  * are normally a .zip with a single named JSON entry, but real-world file
  * handling can hand back something slightly different than what we wrote:
  *

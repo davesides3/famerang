@@ -1,7 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { renderPageToCanvas } from './compositing';
 import { getTrimSize } from './types';
-import type { Booklet, PageWithStamps } from './types';
+import type { Booklet, PageWithStickers } from './types';
 
 // Draft renders are capped at this many pixels on the long edge, regardless
 // of trim size, so the PDF stays small even for large booklets.
@@ -30,7 +30,7 @@ export function isLargeDraftPdf(pageCount: number): boolean {
  */
 export async function generateDraftPdf(
   booklet: Booklet,
-  pages: PageWithStamps[],
+  pages: PageWithStickers[],
 ): Promise<Blob> {
   const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
   const trimAspect = widthPx / heightPx;

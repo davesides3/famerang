@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { useBooklet, usePages, usePageWithStamps, setPagePhoto, updatePageText, removePageStamp, MAX_STAMPS_PER_PAGE } from '@/lib/hooks';
+import { useBooklet, usePages, usePageWithStickers, setPagePhoto, updatePageText, removePageSticker, MAX_STICKERS_PER_PAGE } from '@/lib/hooks';
 import { getTrimSize } from '@/lib/types';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
@@ -17,7 +17,7 @@ export function PageEditor() {
 
   const booklet = useBooklet(bookletId);
   const pages = usePages(bookletId);
-  const page = usePageWithStamps(pageId);
+  const page = usePageWithStickers(pageId);
 
   const currentIndex = pages?.findIndex((p) => p.id === pageId) ?? -1;
   const prevPage = currentIndex > 0 ? pages?.[currentIndex - 1] : undefined;
@@ -43,19 +43,19 @@ export function PageEditor() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const stampLimitReached = (page?.stamps.length ?? 0) >= MAX_STAMPS_PER_PAGE;
+  const stickerLimitReached = (page?.stickers.length ?? 0) >= MAX_STICKERS_PER_PAGE;
 
   // If the page is already at the limit, there's nothing to place -- show
-  // the limit message right here (where stamps can actually be removed)
+  // the limit message right here (where stickers can actually be removed)
   // instead of sending the user to the full-screen picker with no way out.
-  const openStampPicker = () => {
-    if (stampLimitReached) return;
-    setLocation(`/booklet/${bookletId}/page/${pageId}/stamps`);
+  const openStickerPicker = () => {
+    if (stickerLimitReached) return;
+    setLocation(`/booklet/${bookletId}/page/${pageId}/stickers`);
   };
 
   const handleCanvasTap = (xRatio: number, yRatio: number) => {
-    // We could use this to place a selected stamp, or just ignore for now.
-    // The spec said "tapping a stamp... place it at sensible default (center)... user drag it".
+    // We could use this to place a selected sticker, or just ignore for now.
+    // The spec said "tapping a sticker... place it at sensible default (center)... user drag it".
   };
 
   const togglePlacement = () => {
@@ -157,25 +157,25 @@ export function PageEditor() {
               <ImagePlus className="w-5 h-5 mr-2" />
               {page.photoDataUrl ? 'Replace Photo' : 'Add Photo'}
             </PaperButton>
-            <PaperButton variant="primary" className="flex-1" onClick={openStampPicker}>
+            <PaperButton variant="primary" className="flex-1" onClick={openStickerPicker}>
               <Sticker className="w-5 h-5 mr-2" />
-              Stamps
+              Stickers
             </PaperButton>
           </div>
 
-          {page.stamps.length > 0 && (
+          {page.stickers.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto py-2">
               <span className="text-xs font-bold text-muted-foreground shrink-0 mr-1">
-                Stamps ({page.stamps.length}/{MAX_STAMPS_PER_PAGE}):
+                Stickers ({page.stickers.length}/{MAX_STICKERS_PER_PAGE}):
               </span>
-              {page.stamps.map(s => (
+              {page.stickers.map(s => (
                 <button 
                   key={s.id} 
                   className="relative shrink-0"
-                  onClick={() => removePageStamp(s.id)}
-                  title="Remove stamp"
+                  onClick={() => removePageSticker(s.id)}
+                  title="Remove sticker"
                 >
-                  <img src={s.stamp.pngDataUrl} className="w-10 h-10 rounded-full border-2 border-border bg-white" />
+                  <img src={s.sticker.pngDataUrl} className="w-10 h-10 rounded-full border-2 border-border bg-white" />
                   <div className="absolute -top-1 -right-1 bg-destructive text-white rounded-full w-4 h-4 flex items-center justify-center">
                     <Trash2 className="w-2.5 h-2.5" />
                   </div>

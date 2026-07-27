@@ -3,13 +3,13 @@ import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { renderPageToCanvas } from '@/lib/compositing';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import { getTrimSize } from '@/lib/types';
-import type { Booklet, PageWithStamps } from '@/lib/types';
+import type { Booklet, PageWithStickers } from '@/lib/types';
 
 const PREVIEW_RENDER_SIZE = 1000;
 
 interface Props {
   booklet: Booklet;
-  pages: PageWithStamps[];
+  pages: PageWithStickers[];
   initialIndex: number;
   onClose: () => void;
 }

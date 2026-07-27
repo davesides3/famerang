@@ -1,46 +1,46 @@
 import JSZip from 'jszip';
 import { db } from './db';
-import type { Stamp, StampPackage } from './types';
+import type { Sticker, StickerPack } from './types';
 
 // ─── Format ───────────────────────────────────────────────────────────────────
 //
-// v1 (removed): single `famerang-stamp-pack.json` with pngDataUrl fields
-//               embedded in each stamp object.
-// v2 (current): `manifest.json` + one `<stamp-name>.png` binary entry per stamp.
+// v1 (removed): single `famerang-sticker-pack.json` with pngDataUrl fields
+//               embedded in each sticker object.
+// v2 (current): `manifest.json` + one `<sticker-name>.png` binary entry per sticker.
 
 const STAMP_PACK_VERSION = 2;
 const MANIFEST_ENTRY = 'manifest.json';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** Stamp row as it appears inside the v2 manifest (no image data). */
-interface ManifestStamp {
+/** Sticker row as it appears inside the v2 manifest (no image data). */
+interface ManifestSticker {
   id: string;
   name: string;
   contentHash: string;
-  /** Path of the PNG entry inside the zip, e.g. `"my-stamp.png"`. */
+  /** Path of the PNG entry inside the zip, e.g. `"my-sticker.png"`. */
   filename: string;
 }
 
-interface StampPackManifestV2 {
+interface StickerPackManifestV2 {
   version: 2;
   exportedAt: number;
-  kind: 'stampPack';
-  package: StampPackage;
-  stamps: ManifestStamp[];
+  kind: 'stickerPack';
+  package: StickerPack;
+  stickers: ManifestSticker[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const newId = () => crypto.randomUUID();
 
-/** Derives a unique filename for a stamp within the zip.
- * Uses the stamp name (already a clean label like "dinosaur-1") plus `.png`.
- * Appends the first 8 chars of the stamp id when there is a name collision. */
-function stampFilename(stamp: Stamp, usedFilenames: Set<string>): string {
-  const base = `${stamp.name}.png`;
+/** Derives a unique filename for a sticker within the zip.
+ * Uses the sticker name (already a clean label like "dinosaur-1") plus `.png`.
+ * Appends the first 8 chars of the sticker id when there is a name collision. */
+function stickerFilename(sticker: Sticker, usedFilenames: Set<string>): string {
+  const base = `${sticker.name}.png`;
   if (!usedFilenames.has(base)) return base;
-  return `${stamp.name}-${stamp.id.slice(0, 8)}.png`;
+  return `${sticker.name}-${sticker.id.slice(0, 8)}.png`;
 }
 
 /** Converts a base64 data URL to a Uint8Array of raw bytes. */
@@ -62,34 +62,34 @@ function bytesToDataUrl(bytes: Uint8Array): string {
 // ─── Export ───────────────────────────────────────────────────────────────────
 
 /**
- * Exports a stamp pack as a v2 ZIP containing:
- *   - `manifest.json`  — package metadata + stamp list (no image data)
- *   - `<name>.png`     — one raw PNG binary entry per stamp
+ * Exports a sticker pack as a v2 ZIP containing:
+ *   - `manifest.json`  — package metadata + sticker list (no image data)
+ *   - `<name>.png`     — one raw PNG binary entry per sticker
  *
  * PNG entries use STORE compression since PNG is already compressed.
  */
-export async function exportStampPackageZip(packageId: string): Promise<Blob> {
-  const pkg = await db.stampPackages.get(packageId);
-  if (!pkg) throw new Error('Stamp pack not found.');
-  const stamps = await db.stamps.where('packageId').equals(packageId).toArray();
+export async function exportStickerPackZip(packageId: string): Promise<Blob> {
+  const pkg = await db.stickerPacks.get(packageId);
+  if (!pkg) throw new Error('Sticker pack not found.');
+  const stickers = await db.stickers.where('packageId').equals(packageId).toArray();
 
   const zip = new JSZip();
   const usedFilenames = new Set<string>();
-  const manifestStamps: ManifestStamp[] = [];
+  const manifestStickers: ManifestSticker[] = [];
 
-  for (const stamp of stamps) {
-    const filename = stampFilename(stamp, usedFilenames);
+  for (const sticker of stickers) {
+    const filename = stickerFilename(sticker, usedFilenames);
     usedFilenames.add(filename);
-    manifestStamps.push({ id: stamp.id, name: stamp.name, contentHash: stamp.contentHash, filename });
-    zip.file(filename, dataUrlToBytes(stamp.pngDataUrl), { compression: 'STORE' });
+    manifestStickers.push({ id: sticker.id, name: sticker.name, contentHash: sticker.contentHash, filename });
+    zip.file(filename, dataUrlToBytes(sticker.pngDataUrl), { compression: 'STORE' });
   }
 
-  const manifest: StampPackManifestV2 = {
+  const manifest: StickerPackManifestV2 = {
     version: STAMP_PACK_VERSION,
     exportedAt: Date.now(),
-    kind: 'stampPack',
+    kind: 'stickerPack',
     package: pkg,
-    stamps: manifestStamps,
+    stickers: manifestStickers,
   };
 
   zip.file(MANIFEST_ENTRY, JSON.stringify(manifest, null, 2));
@@ -99,43 +99,43 @@ export async function exportStampPackageZip(packageId: string): Promise<Blob> {
 
 // ─── Import ───────────────────────────────────────────────────────────────────
 
-export type StampPackImportTarget =
+export type StickerPackImportTarget =
   | { mode: 'new' }
   | { mode: 'merge'; packageId: string };
 
 /**
- * Imports a v2 stamp pack ZIP (`manifest.json` + individual `.png` entries).
- * Stamps always get fresh IDs on import to avoid collisions with existing data.
+ * Imports a v2 sticker pack ZIP (`manifest.json` + individual `.png` entries).
+ * Stickers always get fresh IDs on import to avoid collisions with existing data.
  */
-export async function importStampPackageZip(
+export async function importStickerPackZip(
   file: File,
-  target: StampPackImportTarget,
-): Promise<StampPackage> {
+  target: StickerPackImportTarget,
+): Promise<StickerPack> {
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(file);
   } catch {
-    throw new Error('This file is not a valid Famerang stamp pack.');
+    throw new Error('This file is not a valid Famerang sticker pack.');
   }
 
   const manifestEntry = zip.file(MANIFEST_ENTRY);
-  if (!manifestEntry) throw new Error('This file is not a valid Famerang stamp pack.');
+  if (!manifestEntry) throw new Error('This file is not a valid Famerang sticker pack.');
 
-  let manifest: StampPackManifestV2;
+  let manifest: StickerPackManifestV2;
   try {
-    manifest = JSON.parse(await manifestEntry.async('string')) as StampPackManifestV2;
+    manifest = JSON.parse(await manifestEntry.async('string')) as StickerPackManifestV2;
   } catch {
-    throw new Error('This file is not a valid Famerang stamp pack.');
+    throw new Error('This file is not a valid Famerang sticker pack.');
   }
 
-  if (!manifest?.package || !Array.isArray(manifest.stamps)) {
-    throw new Error('This file is not a valid Famerang stamp pack.');
+  if (!manifest?.package || !Array.isArray(manifest.stickers)) {
+    throw new Error('This file is not a valid Famerang sticker pack.');
   }
 
-  const stamps: Stamp[] = await Promise.all(
-    manifest.stamps.map(async (ms) => {
+  const stickers: Sticker[] = await Promise.all(
+    manifest.stickers.map(async (ms) => {
       const entry = zip.file(ms.filename);
-      if (!entry) throw new Error(`Stamp pack is missing image file: ${ms.filename}`);
+      if (!entry) throw new Error(`Sticker pack is missing image file: ${ms.filename}`);
       const bytes = await entry.async('uint8array');
       return {
         id: ms.id,
@@ -147,15 +147,15 @@ export async function importStampPackageZip(
     }),
   );
 
-  return db.transaction('rw', db.stampPackages, db.stamps, async () => {
-    let targetPackage: StampPackage;
+  return db.transaction('rw', db.stickerPacks, db.stickers, async () => {
+    let targetPackage: StickerPack;
 
     if (target.mode === 'merge') {
-      const existing = await db.stampPackages.get(target.packageId);
-      if (!existing) throw new Error('Target stamp pack no longer exists.');
+      const existing = await db.stickerPacks.get(target.packageId);
+      if (!existing) throw new Error('Target sticker pack no longer exists.');
       targetPackage = existing;
     } else {
-      const existing = await db.stampPackages.toArray();
+      const existing = await db.stickerPacks.toArray();
       const maxOrder = existing.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
       targetPackage = {
         id: newId(),
@@ -166,15 +166,15 @@ export async function importStampPackageZip(
         ...(manifest.package.creditsUrl !== undefined && { creditsUrl: manifest.package.creditsUrl }),
         ...(manifest.package.creditsLocked !== undefined && { creditsLocked: manifest.package.creditsLocked }),
       };
-      await db.stampPackages.add(targetPackage);
+      await db.stickerPacks.add(targetPackage);
     }
 
-    const importedStamps: Stamp[] = stamps.map((s) => ({
+    const importedStickers: Sticker[] = stickers.map((s) => ({
       ...s,
       id: newId(),
       packageId: targetPackage.id,
     }));
-    if (importedStamps.length) await db.stamps.bulkAdd(importedStamps);
+    if (importedStickers.length) await db.stickers.bulkAdd(importedStickers);
 
     return targetPackage;
   });

@@ -1,17 +1,17 @@
-# Default Stamp Packs
+# Default Sticker Packs
 
-Famerang ships with a set of built-in stamp packs that are automatically seeded into every user's local database on first launch. This document explains the zip format, and how to add and update packs.
+Famerang ships with a set of built-in sticker packs that are automatically seeded into every user's local database on first launch. This document explains the zip format, and how to add and update packs.
 
 ---
 
 ## ZIP format (v2)
 
-Each stamp pack zip contains:
+Each sticker pack zip contains:
 
 | Entry | Description |
 |---|---|
-| `manifest.json` | Package metadata + stamp list (no image data) |
-| `<stamp-name>.png` | One binary PNG file per stamp |
+| `manifest.json` | Package metadata + sticker list (no image data) |
+| `<sticker-name>.png` | One binary PNG file per sticker |
 
 **`manifest.json` shape:**
 
@@ -19,7 +19,7 @@ Each stamp pack zip contains:
 {
   "version": 2,
   "exportedAt": 1234567890000,
-  "kind": "stampPack",
+  "kind": "stickerPack",
   "package": {
     "id": "59d9b72c-f951-49c7-a0e4-6ce588d3aa11",
     "name": "Dinosaurs",
@@ -29,7 +29,7 @@ Each stamp pack zip contains:
     "creditsUrl": "https://example.com",
     "creditsLocked": true
   },
-  "stamps": [
+  "stickers": [
     {
       "id": "abc123...",
       "name": "spinosaurus-happy-right",
@@ -42,7 +42,7 @@ Each stamp pack zip contains:
 
 The PNG files sit at the top level of the zip alongside `manifest.json` — not in a subfolder. Their filenames match the `filename` fields in the manifest.
 
-> **Backwards compatibility:** The app can still import old v1 zips (single `famerang-stamp-pack.json` with base64 images). Any v1 file a user has saved will import correctly. New exports always use v2.
+> **Backwards compatibility:** The app can still import old v1 zips (single `famerang-sticker-pack.json` with base64 images). Any v1 file a user has saved will import correctly. New exports always use v2.
 
 ---
 
@@ -51,7 +51,7 @@ The PNG files sit at the top level of the zip alongside `manifest.json` — not 
 On every app start, `src/lib/seedPacks.ts` compares a `SEED_VERSION` constant against the version stored in the user's `localStorage`. If the stored version is lower, the seed routine runs:
 
 - **New packs** are inserted into IndexedDB with a fixed, stable ID.
-- **Existing packs** (already seeded on a previous version) have their stamps replaced, while the pack record itself (name, sort order) is left untouched so any user customisation is preserved.
+- **Existing packs** (already seeded on a previous version) have their stickers replaced, while the pack record itself (name, sort order) is left untouched so any user customisation is preserved.
 - **User-created packs** (IDs not in `DEFAULT_PACKS`) are never touched.
 
 After seeding, the new version number is written to `localStorage` so the routine is skipped on subsequent launches.
@@ -64,7 +64,7 @@ After seeding, the new version number is written to `localStorage` so the routin
 |---|---|
 | `public/seed-packs/` | Static zip assets served by Vite at build time |
 | `src/lib/seedPacks.ts` | Seed logic and pack manifest (`DEFAULT_PACKS`) |
-| `src/lib/stampPackZip.ts` | Export and import logic (handles v1 + v2) |
+| `src/lib/stickerPackZip.ts` | Export and import logic (handles v1 + v2) |
 
 ---
 
@@ -72,7 +72,7 @@ After seeding, the new version number is written to `localStorage` so the routin
 
 ### 1. Export the pack zip from Famerang
 
-Open the Stamps Library, navigate into the pack, and use the **Export** toolbar button. This produces a `famerang-<name>.zip` file in the v2 format (a `manifest.json` plus individual `.png` files).
+Open the Stickers Library, navigate into the pack, and use the **Export** toolbar button. This produces a `famerang-<name>.zip` file in the v2 format (a `manifest.json` plus individual `.png` files).
 
 ### 2. Note the pack's `id`
 
@@ -113,13 +113,13 @@ const DEFAULT_PACKS: Array<{ id: string; asset: string }> = [
 const SEED_VERSION = 3; // was 2
 ```
 
-That's it. On their next app launch, every user will receive the new pack at the bottom of their Stamp Library.
+That's it. On their next app launch, every user will receive the new pack at the bottom of their Sticker Library.
 
 ---
 
 ## Updating an existing pack
 
-Use this flow when you want to replace the stamps inside a pack that has already been shipped (e.g. you've redrawn some images, added stamps, or fixed filenames).
+Use this flow when you want to replace the stickers inside a pack that has already been shipped (e.g. you've redrawn some images, added stickers, or fixed filenames).
 
 ### 1. Re-export the pack zip from Famerang
 
@@ -135,9 +135,9 @@ Overwrite the existing file with the new zip, keeping the same filename.
 const SEED_VERSION = 3; // was 2
 ```
 
-On next launch, the seed routine finds the pack already in the user's DB (matching by ID), deletes its stamps, and re-inserts the stamps from the new zip. The pack name and sort order the user set are preserved.
+On next launch, the seed routine finds the pack already in the user's DB (matching by ID), deletes its stickers, and re-inserts the stickers from the new zip. The pack name and sort order the user set are preserved.
 
-> **Note on stamp references:** if a user has already placed stamps from this pack onto booklet pages, those `pageStamp` records reference stamp IDs. Where possible, preserve stamp IDs for stamps that haven't changed — only new or redrawn stamps need new IDs. Stamps whose IDs disappear from the pack will leave orphaned placements on existing pages (the image won't render).
+> **Note on sticker references:** if a user has already placed stickers from this pack onto booklet pages, those `pageSticker` records reference sticker IDs. Where possible, preserve sticker IDs for stickers that haven't changed — only new or redrawn stickers need new IDs. Stickers whose IDs disappear from the pack will leave orphaned placements on existing pages (the image won't render).
 
 ### Editing PNGs directly in the zip
 
@@ -145,7 +145,7 @@ Because the v2 format stores PNGs as plain binary files, you can also edit a pac
 
 1. Unzip the pack.
 2. Edit, replace, or add `.png` files.
-3. Update `manifest.json` — add/remove stamp entries and update `filename` references.
+3. Update `manifest.json` — add/remove sticker entries and update `filename` references.
 4. Rezip and drop back into `public/seed-packs/`.
 5. Bump `SEED_VERSION`.
 

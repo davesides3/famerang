@@ -5,7 +5,7 @@ import { seedDefaultPacks } from './lib/seedPacks';
 
 import './index.css';
 
-// Seed default stamp packs into IndexedDB before first render.
+// Seed default sticker packs into IndexedDB before first render.
 // Fire-and-forget: the UI mounts immediately; packs appear as soon as the
 // async writes complete (~1-2 s on first load).  If an asset fetch fails the
 // app still starts normally and the failed pack is retried next launch.

@@ -6,17 +6,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { PaperButton } from '@/components/ui/PaperButton';
-import { updateStampPackageCredits } from '@/lib/hooks';
-import type { StampPackage } from '@/lib/types';
+import { updateStickerPackCredits } from '@/lib/hooks';
+import type { StickerPack } from '@/lib/types';
 
 interface Props {
-  pkg: StampPackage;
+  pkg: StickerPack;
   open: boolean;
   onClose: () => void;
 }
 
 /**
- * Info / credits dialog for a stamp package.
+ * Info / credits dialog for a sticker package.
  *
  * Shows artist name and URL in read-only view. A padlock button in the header
  * controls edit access:
@@ -25,7 +25,7 @@ interface Props {
  * Save saves without locking; Cancel reverts local edits and re-locks if the
  * package was locked when the dialog opened.
  */
-export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
+export function StickerPackInfoDialog({ pkg, open, onClose }: Props) {
   const [localLocked, setLocalLocked] = useState(pkg.creditsLocked ?? false);
   const [draftArtist, setDraftArtist] = useState(pkg.artist ?? '');
   const [draftUrl, setDraftUrl] = useState(pkg.creditsUrl ?? '');
@@ -45,11 +45,11 @@ export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
   const handlePadlockToggle = async () => {
     if (localLocked) {
       // Unlock: persist to DB then enter edit mode.
-      await updateStampPackageCredits(pkg.id, { creditsLocked: false });
+      await updateStickerPackCredits(pkg.id, { creditsLocked: false });
       setLocalLocked(false);
     } else {
       // Lock: save current drafts and lock.
-      await updateStampPackageCredits(pkg.id, {
+      await updateStickerPackCredits(pkg.id, {
         artist: draftArtist.trim() || undefined,
         creditsUrl: draftUrl.trim() || undefined,
         creditsLocked: true,
@@ -59,7 +59,7 @@ export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
   };
 
   const handleSave = async () => {
-    await updateStampPackageCredits(pkg.id, {
+    await updateStickerPackCredits(pkg.id, {
       artist: draftArtist.trim() || undefined,
       creditsUrl: draftUrl.trim() || undefined,
     });
@@ -70,7 +70,7 @@ export function StampPackageInfoDialog({ pkg, open, onClose }: Props) {
     // If the package was locked when we opened, re-lock it (in case the user
     // unlocked it and started editing but now wants to undo).
     if (pkg.creditsLocked && !localLocked) {
-      await updateStampPackageCredits(pkg.id, { creditsLocked: true });
+      await updateStickerPackCredits(pkg.id, { creditsLocked: true });
     }
     setDraftArtist(pkg.artist ?? '');
     setDraftUrl(pkg.creditsUrl ?? '');

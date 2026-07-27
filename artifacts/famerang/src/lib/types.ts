@@ -53,7 +53,7 @@ export interface Booklet {
   fontSize: number;
   createdAt: number;
   updatedAt: number;
-  // Timestamp of the last successful backup (global or booklet-level) that
+  // Timesticker of the last successful backup (global or booklet-level) that
   // included this booklet. `null` means it has never been backed up. Used
   // to show the "not backed up" indicator whenever updatedAt > this.
   lastBackedUpAt: number | null;
@@ -68,11 +68,11 @@ export interface Page {
   sortOrder: number;
 }
 
-export interface StampPackage {
+export interface StickerPack {
   id: string;
   name: string;
   createdAt: number;
-  // Position in the user-orderable stamp package list (lower = higher up).
+  // Position in the user-orderable sticker package list (lower = higher up).
   // Newly created/imported/restored packages are appended after the
   // current maximum so they land at the bottom of the list.
   sortOrder: number;
@@ -84,7 +84,7 @@ export interface StampPackage {
   creditsLocked?: boolean;
 }
 
-export interface Stamp {
+export interface Sticker {
   id: string;
   packageId: string;
   name: string;
@@ -92,20 +92,20 @@ export interface Stamp {
   contentHash: string;
 }
 
-export interface PageStamp {
+export interface PageSticker {
   id: string;
   pageId: string;
-  stampId: string;
+  stickerId: string;
   xRatio: number;
   yRatio: number;
-  // Sequence in which the stamp was placed -- later stamps draw on top.
+  // Sequence in which the sticker was placed -- later stickers draw on top.
   stackOrder: number;
 }
 
-export interface PageStampWithStamp extends PageStamp {
-  stamp: Stamp;
+export interface PageStickerWithSticker extends PageSticker {
+  sticker: Sticker;
 }
 
-export interface PageWithStamps extends Page {
-  stamps: PageStampWithStamp[];
+export interface PageWithStickers extends Page {
+  stickers: PageStickerWithSticker[];
 }

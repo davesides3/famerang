@@ -63,7 +63,7 @@ export async function downscaleImageFileToDataUrl(
   }
 }
 
-/** Reads a transparent PNG stamp file as-is (no resizing -- stamps are
+/** Reads a transparent PNG sticker file as-is (no resizing -- stickers are
  * typically small, pre-cropped assets), returning a data URL. */
 export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -74,7 +74,7 @@ export function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-/** SHA-256 content hash of a file, used to de-duplicate stamps. */
+/** SHA-256 content hash of a file, used to de-duplicate stickers. */
 export async function hashFile(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const digest = await crypto.subtle.digest('SHA-256', buffer);
