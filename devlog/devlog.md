@@ -19,6 +19,8 @@ Change Log
 2026-07-28 Tuesday
 - subagent still says it's working, but UI so ignoring
 - fixed problem with FFmpeg WASM (Power mode)
+- revisions to export screen
+- better progress bar on video generation
 
 2026-07-27 Monday
 - change stamps to stickers in UI
