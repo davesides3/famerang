@@ -108,6 +108,12 @@ export default defineConfig({
       },
     }),
   ],
+  optimizeDeps: {
+    // @ffmpeg/ffmpeg ships a Web Worker that Vite's dep-optimizer breaks by
+    // rewriting the worker file reference.  Excluding these packages lets them
+    // load their own worker URL correctly and prevents ff.load() from hanging.
+    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, 'src'),
