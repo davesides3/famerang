@@ -26,6 +26,8 @@ Change Log
 - revise page list UI - all buttons at top
 - archive contains backup and restore
 - add export Send Print PDF
+- got stuck on evaluating WASM package download?
+- contacted customer support
 
 2026-07-26 Sunday
 - revise stamp package file format
