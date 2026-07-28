@@ -483,7 +483,7 @@ export function BookletHub() {
 
         <div className="flex flex-col gap-3">
           <PaperCard className="flex flex-col gap-3 p-4">
-            <p className="text-sm text-muted-foreground">Lower resolution for screen viewing</p>
+            <p className="text-sm text-muted-foreground text-center">Lower resolution for screen viewing.</p>
             <PaperButton
               type="button"
               onClick={handleDraftPdfClick}
@@ -511,7 +511,7 @@ export function BookletHub() {
           )}
 
           <PaperCard className="flex flex-col gap-3 p-4">
-            <p className="text-sm text-muted-foreground">Higher resolution for printing</p>
+            <p className="text-sm text-muted-foreground text-center">Higher resolution for printing.</p>
             <PaperButton
               type="button"
               onClick={handlePrintPdfClick}
@@ -539,7 +539,7 @@ export function BookletHub() {
           )}
 
           <PaperCard className="flex flex-col gap-3 p-4">
-            <p className="text-sm text-muted-foreground">For photo book printing</p>
+            <p className="text-sm text-muted-foreground text-center">Full page composite images for photo books.</p>
             <PaperButton
               type="button"
               onClick={handleSendPhotosClick}
@@ -570,7 +570,7 @@ export function BookletHub() {
           {/* ── MP4 Video Export ─────────────────────────────────────────── */}
           <PaperCard className="flex flex-col gap-3 p-4">
             <div className="flex flex-col gap-3">
-              <p className="text-sm text-muted-foreground">For sharing on mobile</p>
+              <p className="text-sm text-muted-foreground text-center">For sharing on mobile.</p>
               <PaperButton
                 type="button"
                 onClick={handleMp4Export}
