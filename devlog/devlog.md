@@ -16,6 +16,13 @@ Ideas
 
 Change Log
 
+
+2026-07-27 Monday
+- change stamps to stickers in UI
+- change stamps to stickers in code/db
+- cat stickers
+- create sample booklet
+
 2026-07-26 Sunday
 - revise stamp package file format
 - revise backup/restore file format
