@@ -108,6 +108,8 @@ export function BookletHub() {
   // module (progress 2–9%).  Ticks every second via a useEffect interval.
   const [mp4LoadElapsed, setMp4LoadElapsed] = useState(0);
   const mp4LoadStartRef = useRef<number | null>(null);
+  // Per-page progress reported by the export pipeline.
+  const [mp4PageProgress, setMp4PageProgress] = useState<{ current: number; total: number; phase: 'rendering' | 'writing' } | null>(null);
   const [mp4SecondsPerPage, setMp4SecondsPerPage] = useState(3);
   const [mp4Crossfade, setMp4Crossfade] = useState(false);
 
@@ -343,6 +345,7 @@ export function BookletHub() {
       setMp4DownloadProgress(null);
       setMp4SecondsRemaining(null);
       setMp4LoadElapsed(0);
+      setMp4PageProgress(null);
       mp4EncodeStartRef.current = null;
       mp4LoadStartRef.current = null;
       setMp4EncoderWasCached(isEncoderCached());
@@ -378,6 +381,8 @@ export function BookletHub() {
         },
         onDownloadProgress: (received, total) =>
           setMp4DownloadProgress({ received, total }),
+        onPageProgress: (current, total, phase) =>
+          setMp4PageProgress({ current, total, phase }),
       });
       const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
       // eslint-disable-next-line no-console
@@ -602,16 +607,19 @@ export function BookletHub() {
                   ))}
                 </div>
               </div>
-              <label className="flex items-center justify-center gap-2.5 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={mp4Crossfade}
-                  onChange={(e) => setMp4Crossfade(e.target.checked)}
-                  disabled={isGeneratingMp4}
-                  className="w-4 h-4 accent-primary rounded"
-                />
+              <div className="flex items-center justify-center gap-3">
                 <span className="text-sm font-bold text-foreground">Crossfade between pages</span>
-              </label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={mp4Crossfade}
+                  onClick={() => setMp4Crossfade(!mp4Crossfade)}
+                  disabled={isGeneratingMp4}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-50 ${mp4Crossfade ? 'bg-primary' : 'bg-muted'}`}
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${mp4Crossfade ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+              </div>
             </div>
           </PaperCard>
 
@@ -646,9 +654,13 @@ export function BookletHub() {
                   // Phase 2: ff.load() — WASM instantiation (5–20 s on mobile)
                   <>Starting encoder… {mp4LoadElapsed > 0 ? `${mp4LoadElapsed}s` : ''}</>
                 ) : mp4Progress < 45 ? (
-                  <>Rendering pages… {mp4Progress}%</>
+                  mp4PageProgress
+                    ? <>Rendering page {mp4PageProgress.current} of {mp4PageProgress.total}…</>
+                    : <>Rendering pages… {mp4Progress}%</>
                 ) : mp4Progress < 67 ? (
-                  <>Preparing frames… {mp4Progress}%</>
+                  mp4PageProgress
+                    ? <>Preparing frames… page {mp4PageProgress.current} of {mp4PageProgress.total}</>
+                    : <>Preparing frames… {mp4Progress}%</>
                 ) : (
                   <>
                     Encoding video… {mp4Progress}%

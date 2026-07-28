@@ -23,6 +23,10 @@ export interface VideoExportOptions {
    *  `received` and `total` are in bytes; `total` may be 0 if the server
    *  does not send a Content-Length header. */
   onDownloadProgress?: (received: number, total: number) => void;
+  /** Called as each page is processed during rendering (phase='rendering')
+   *  and MEMFS frame-writing (phase='writing').
+   *  `current` is 1-based; `total` is the total page count. */
+  onPageProgress?: (current: number, total: number, phase: 'rendering' | 'writing') => void;
 }
 
 // Longest edge of the output video. 1080 gives a good quality/encode-time
@@ -103,7 +107,7 @@ export async function generateMp4(
 
   if (pages.length === 0) throw new Error('No pages to export.');
 
-  const { onProgress, onDownloadProgress } = options;
+  const { onProgress, onDownloadProgress, onPageProgress } = options;
   let pct = 0;
   const report = (p: number) => {
     pct = Math.max(pct, Math.min(99, Math.round(p)));
@@ -266,6 +270,7 @@ export async function generateMp4(
     }
     dbg(`  render page ${i + 1}/${pages.length} — done`);
     report(10 + ((i + 1) / pages.length) * 35); // 10 → 45 %
+    onPageProgress?.(i + 1, pages.length, 'rendering');
   }
   dbg('all pages rendered');
 
@@ -323,6 +328,7 @@ export async function generateMp4(
     }
 
     report(45 + ((i + 1) / canvases.length) * 20); // 45 → 65 %
+    onPageProgress?.(i + 1, canvases.length, 'writing');
   }
   dbg(`MEMFS write done — ${fileIdx} file(s) written`);
 
