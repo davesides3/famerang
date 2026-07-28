@@ -2,6 +2,19 @@ import { canvasToBlob, renderPageToCanvas } from './compositing';
 import { getTrimSize } from './types';
 import type { Booklet, PageWithStickers } from './types';
 
+/**
+ * Set to true after the FFmpeg WASM core has been loaded at least once in
+ * this browser session.  The browser caches the ~26 MB core after the first
+ * load, so every subsequent load skips the CDN download entirely.
+ */
+let _encoderLoaded = false;
+
+/** Returns true if the FFmpeg WASM core was already loaded (and therefore
+ *  cached) earlier in this browser session. */
+export function isEncoderCached(): boolean {
+  return _encoderLoaded;
+}
+
 export interface VideoExportOptions {
   secondsPerPage: number;
   crossfade: boolean;
@@ -120,6 +133,7 @@ export async function generateMp4(
     ]);
 
     await ff.load({ coreURL, wasmURL });
+    _encoderLoaded = true;
   } catch (err) {
     // Network errors here almost always mean the device is offline and the
     // encoder hasn't been cached yet from a previous export.

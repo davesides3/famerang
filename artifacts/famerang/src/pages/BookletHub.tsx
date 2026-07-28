@@ -28,7 +28,7 @@ import {
   generatePrintPdf,  isLargePrintPdf,  estimatePrintPdfBytes,
 } from '@/lib/pdf';
 import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhotoExportBytes } from '@/lib/photoExport';
-import { generateMp4 } from '@/lib/videoExport';
+import { generateMp4, isEncoderCached } from '@/lib/videoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { TRIM_SIZES, FONT_FAMILY_OPTIONS, getTrimSize } from '@/lib/types';
@@ -95,6 +95,10 @@ export function BookletHub() {
   const [mp4Progress, setMp4Progress] = useState(0);
   const [mp4DownloadProgress, setMp4DownloadProgress] = useState<{ received: number; total: number } | null>(null);
   const [mp4Error, setMp4Error] = useState<string | null>(null);
+  // Snapshot of isEncoderCached() taken at the start of each export run.
+  // When true the FFmpeg core was already in memory, so we suppress the
+  // byte-counter and show "Loading encoder… (cached)" instead.
+  const [mp4EncoderWasCached, setMp4EncoderWasCached] = useState(false);
   const [mp4SecondsPerPage, setMp4SecondsPerPage] = useState(3);
   const [mp4Crossfade, setMp4Crossfade] = useState(false);
 
@@ -310,6 +314,7 @@ export function BookletHub() {
       setMp4Error(null);
       setMp4Progress(0);
       setMp4DownloadProgress(null);
+      setMp4EncoderWasCached(isEncoderCached());
       setIsGeneratingMp4(true);
       // Yield so the loading state paints before the heavy work starts.
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -578,7 +583,9 @@ export function BookletHub() {
               </div>
               <p className="text-xs text-muted-foreground font-bold text-center">
                 {mp4Progress < 10 ? (
-                  mp4DownloadProgress && mp4DownloadProgress.total > 0 ? (
+                  mp4EncoderWasCached ? (
+                    'Loading encoder… (cached)'
+                  ) : mp4DownloadProgress && mp4DownloadProgress.total > 0 ? (
                     <>
                       Downloading encoder…{' '}
                       {(mp4DownloadProgress.received / 1_048_576).toFixed(1)} MB
