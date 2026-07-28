@@ -487,7 +487,7 @@ export function BookletHub() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-foreground">Send Draft PDF</p>
-              <p className="text-sm text-muted-foreground">Screen-quality PDF (150 dpi) — great for previewing and sharing digitally.</p>
+              <p className="text-sm text-muted-foreground">150 dpi — good for previewing and digital sharing.</p>
             </div>
             <PaperButton
               type="button"
@@ -519,7 +519,7 @@ export function BookletHub() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-foreground">Send Print PDF</p>
-              <p className="text-sm text-muted-foreground">Full-resolution PDF (300 dpi) — ready for home printing or an online print service.</p>
+              <p className="text-sm text-muted-foreground">300 dpi — ready for home or professional printing.</p>
             </div>
             <PaperButton
               type="button"
@@ -552,7 +552,7 @@ export function BookletHub() {
             <div className="flex-1 min-w-0">
               <p className="font-bold text-foreground">Send Photos</p>
               <p className="text-sm text-muted-foreground">
-                Full-resolution images of every page, ready to save straight into Google Photos or Apple Photos.
+                Full-res images of every page — save to Google Photos or Apple Photos.
               </p>
             </div>
             <PaperButton
@@ -587,9 +587,9 @@ export function BookletHub() {
                 <Video className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-foreground">Export as Video (MP4)</p>
+                <p className="font-bold text-foreground">Send Video</p>
                 <p className="text-sm text-muted-foreground">
-                  A shareable slideshow — saves to Camera Roll on iOS &amp; Android.
+                  MP4 slideshow — saves to Camera Roll on iOS &amp; Android.
                 </p>
               </div>
               <PaperButton
