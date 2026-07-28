@@ -135,10 +135,31 @@ export async function generateMp4(
 
   const ff = new FFmpeg();
 
+  // Total output duration — used to convert FFmpeg's `time=` timestamp into a
+  // 0–1 encode-phase fraction.  Crossfade transitions are carved out of the
+  // still duration, so total wall-clock time is always pages × secondsPerPage.
+  const totalDurationMs = pages.length * options.secondsPerPage * 1000;
+  // Flag flipped to true just before ff.exec() so the time parser only fires
+  // during the encode phase, not during ff.load() warm-up.
+  let encodePhaseActive = false;
+
   // Attach the FFmpeg log listener so WASM stderr is visible in DevTools.
+  // During encoding, also parse the `time=HH:MM:SS.ss` field that FFmpeg
+  // writes on every stats line — this gives per-frame progress updates that
+  // are much more granular than the `progress` event (which can stall at the
+  // start while the encoder pipeline fills up).
   ff.on('log', ({ type, message }: { type: string; message: string }) => {
     // eslint-disable-next-line no-console
     console.log(`[VideoExport][ffmpeg:${type}] ${message}`);
+    if (!encodePhaseActive) return;
+    // FFmpeg stats lines look like:
+    //   frame=   12 fps= 8.1 q=28.0 size=    512kB time=00:00:00.50 bitrate=…
+    const m = message.match(/time=(\d+):(\d+):(\d+(?:\.\d+)?)/);
+    if (!m) return;
+    const currentMs =
+      (parseInt(m[1], 10) * 3600 + parseInt(m[2], 10) * 60 + parseFloat(m[3])) * 1000;
+    const fraction = Math.min(1, currentMs / totalDurationMs);
+    report(67 + fraction * 32); // 67 → 99 %
   });
 
   // Single-threaded core loaded from CDN — no SharedArrayBuffer required.
@@ -344,12 +365,8 @@ export async function generateMp4(
   dbg('concat.txt written');
 
   // ── 4. H.264 encode ───────────────────────────────────────────────────────
-  ff.on('progress', ({ progress }: { progress: number }) => {
-    // `progress` from FFmpeg.wasm is 0–1 (or occasionally slightly negative/
-    // >1 on variable-duration inputs); clamp it.
-    const clamped = Math.max(0, Math.min(1, progress));
-    report(67 + clamped * 32); // 67 → 99 %
-  });
+  // Activate the log-based time parser (registered above on the log listener).
+  encodePhaseActive = true;
 
   dbg('ff.exec() (H.264 encode) — start');
   try {
