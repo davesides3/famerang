@@ -23,6 +23,9 @@ Change Log
 - cat stickers
 - create sample booklet
 - exiting empty page deletes it
+- revise page list UI - all buttons at top
+- archive contains backup and restore
+- add export Send Print PDF
 
 2026-07-26 Sunday
 - revise stamp package file format
