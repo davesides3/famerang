@@ -207,13 +207,15 @@ export async function generateMp4(
     ]);
 
     // The @ffmpeg/ffmpeg ESM worker loads the core via dynamic import() in a
-    // module-worker context.  The UMD build of ffmpeg-core.js sets
-    // self.createFFmpegCore as a side-effect but doesn't export `.default`,
-    // so the worker's fallback `self.createFFmpegCore = (await import(url)).default`
-    // overwrites the value with undefined and throws "failed to import ffmpeg-core.js".
-    // Fix: append an ESM default re-export so import().default is defined.
+    // module-worker context.  The UMD build of ffmpeg-core.js declares
+    // `var createFFmpegCore = ...` at top level — in an ES module that stays
+    // module-scoped (it never reaches self/globalThis) and there is no
+    // `.default` export, so the worker's fallback
+    // `self.createFFmpegCore = (await import(url)).default` gets undefined and
+    // throws "failed to import ffmpeg-core.js".
+    // Fix: append an ESM default export of the module-scoped variable.
     const jsText = new TextDecoder().decode(jsBytes);
-    const jsWithDefault = `${jsText}\nexport default self.createFFmpegCore;\n`;
+    const jsWithDefault = `${jsText}\nexport default createFFmpegCore;\n`;
 
     const coreURL = URL.createObjectURL(
       new Blob([jsWithDefault], { type: 'text/javascript' }),
