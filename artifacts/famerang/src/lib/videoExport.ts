@@ -91,11 +91,27 @@ export async function generateMp4(
   const ff = new FFmpeg();
 
   // Single-threaded core loaded from CDN — no SharedArrayBuffer required.
+  // On first use the browser (or Workbox runtime cache) fetches ~26 MB from
+  // unpkg; subsequent calls are served from the local cache.
   const CDN = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
-  await ff.load({
-    coreURL: await toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript'),
-    wasmURL: await toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm'),
-  });
+  try {
+    await ff.load({
+      coreURL: await toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm'),
+    });
+  } catch (err) {
+    // Network errors here almost always mean the device is offline and the
+    // encoder hasn't been cached yet from a previous export.
+    const isNetworkError =
+      err instanceof TypeError &&
+      /fetch|network|failed to fetch/i.test((err as TypeError).message);
+    if (isNetworkError || !navigator.onLine) {
+      throw new Error(
+        'Encoder not yet downloaded — connect to the internet for the first export (~26 MB one-time download).',
+      );
+    }
+    throw err;
+  }
   report(10);
 
   // ── 2. Render each page to a canvas ──────────────────────────────────────

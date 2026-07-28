@@ -87,6 +87,24 @@ export default defineConfig({
         // Famerang works fully offline with no network fallback needed.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         navigateFallback: `${basePath}index.html`,
+        // Cache the FFmpeg WASM core from unpkg so it survives browser cache
+        // eviction and remains available offline after the first export.
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/unpkg\.com\/@ffmpeg\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'ffmpeg-cdn',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
     }),
   ],
