@@ -153,27 +153,75 @@ export async function generateMp4(
       onDownloadProgress?.(received, total);
     };
 
-    dbg('toBlobURL — fetching ffmpeg-core.js + ffmpeg-core.wasm from CDN', CDN);
+    dbg('fetching ffmpeg-core.js + ffmpeg-core.wasm from CDN', CDN);
+
+    // Helper: stream-fetch a URL while reporting byte progress.
+    const streamFetch = async (
+      url: string,
+      onBytes: (received: number, total: number) => void,
+    ): Promise<Uint8Array> => {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+      const contentLength = res.headers.get('Content-Length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      const reader = res.body?.getReader();
+      if (!reader) {
+        // Fall back to arrayBuffer when streaming is unavailable.
+        const buf = await res.arrayBuffer();
+        onBytes(buf.byteLength, buf.byteLength);
+        return new Uint8Array(buf);
+      }
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        onBytes(received, total);
+      }
+      const merged = new Uint8Array(received);
+      let offset = 0;
+      for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.length; }
+      return merged;
+    };
+
     let lastJsLog = 0, lastWasmLog = 0;
-    const [coreURL, wasmURL] = await Promise.all([
-      toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript', true, (e: { received: number; total: number }) => {
-        jsReceived = e.received; jsTotal = e.total; reportDownload();
+    const [jsBytes, wasmBytes] = await Promise.all([
+      streamFetch(`${CDN}/ffmpeg-core.js`, (r, t) => {
+        jsReceived = r; jsTotal = t; reportDownload();
         const now = Date.now();
         if (now - lastJsLog > 2000) {
-          dbg(`  ffmpeg-core.js  ${(e.received / 1024).toFixed(0)} KB / ${e.total > 0 ? (e.total / 1024).toFixed(0) + ' KB' : '?'}`);
+          dbg(`  ffmpeg-core.js  ${(r / 1024).toFixed(0)} KB / ${t > 0 ? (t / 1024).toFixed(0) + ' KB' : '?'}`);
           lastJsLog = now;
         }
       }),
-      toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm', true, (e: { received: number; total: number }) => {
-        wasmReceived = e.received; wasmTotal = e.total; reportDownload();
+      streamFetch(`${CDN}/ffmpeg-core.wasm`, (r, t) => {
+        wasmReceived = r; wasmTotal = t; reportDownload();
         const now = Date.now();
         if (now - lastWasmLog > 2000) {
-          dbg(`  ffmpeg-core.wasm ${(e.received / 1_048_576).toFixed(1)} MB / ${e.total > 0 ? (e.total / 1_048_576).toFixed(1) + ' MB' : '?'}`);
+          dbg(`  ffmpeg-core.wasm ${(r / 1_048_576).toFixed(1)} MB / ${t > 0 ? (t / 1_048_576).toFixed(1) + ' MB' : '?'}`);
           lastWasmLog = now;
         }
       }),
     ]);
-    dbg('toBlobURL — both blob URLs ready');
+
+    // The @ffmpeg/ffmpeg ESM worker loads the core via dynamic import() in a
+    // module-worker context.  The UMD build of ffmpeg-core.js sets
+    // self.createFFmpegCore as a side-effect but doesn't export `.default`,
+    // so the worker's fallback `self.createFFmpegCore = (await import(url)).default`
+    // overwrites the value with undefined and throws "failed to import ffmpeg-core.js".
+    // Fix: append an ESM default re-export so import().default is defined.
+    const jsText = new TextDecoder().decode(jsBytes);
+    const jsWithDefault = `${jsText}\nexport default self.createFFmpegCore;\n`;
+
+    const coreURL = URL.createObjectURL(
+      new Blob([jsWithDefault], { type: 'text/javascript' }),
+    );
+    const wasmURL = URL.createObjectURL(
+      new Blob([wasmBytes], { type: 'application/wasm' }),
+    );
+    dbg('blob URLs ready');
 
     // Signal that the download phase is done; the next phase is WASM
     // instantiation (ff.load), which can take 5–20 s on mobile.
