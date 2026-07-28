@@ -6,6 +6,10 @@ export interface VideoExportOptions {
   secondsPerPage: number;
   crossfade: boolean;
   onProgress?: (percent: number) => void;
+  /** Called during the initial CDN download of the FFmpeg WASM core.
+   *  `received` and `total` are in bytes; `total` may be 0 if the server
+   *  does not send a Content-Length header. */
+  onDownloadProgress?: (received: number, total: number) => void;
 }
 
 // Longest edge of the output video. 1080 gives a good quality/encode-time
@@ -73,7 +77,7 @@ export async function generateMp4(
 ): Promise<Blob> {
   if (pages.length === 0) throw new Error('No pages to export.');
 
-  const { onProgress } = options;
+  const { onProgress, onDownloadProgress } = options;
   let pct = 0;
   const report = (p: number) => {
     pct = Math.max(pct, Math.min(99, Math.round(p)));
@@ -95,10 +99,27 @@ export async function generateMp4(
   // unpkg; subsequent calls are served from the local cache.
   const CDN = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
   try {
-    await ff.load({
-      coreURL: await toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
+    // Track combined byte progress for both CDN files (.js + .wasm).
+    // The .js file is a few KB; the .wasm is ~26 MB, so the combined total
+    // is effectively the WASM download.
+    let jsReceived = 0, jsTotal = 0;
+    let wasmReceived = 0, wasmTotal = 0;
+    const reportDownload = () => {
+      const total = jsTotal + wasmTotal;
+      const received = jsReceived + wasmReceived;
+      onDownloadProgress?.(received, total);
+    };
+
+    const [coreURL, wasmURL] = await Promise.all([
+      toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript', true, (e) => {
+        jsReceived = e.received; jsTotal = e.total; reportDownload();
+      }),
+      toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm', true, (e) => {
+        wasmReceived = e.received; wasmTotal = e.total; reportDownload();
+      }),
+    ]);
+
+    await ff.load({ coreURL, wasmURL });
   } catch (err) {
     // Network errors here almost always mean the device is offline and the
     // encoder hasn't been cached yet from a previous export.

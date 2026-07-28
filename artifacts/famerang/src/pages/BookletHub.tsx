@@ -93,6 +93,7 @@ export function BookletHub() {
 
   const [isGeneratingMp4, setIsGeneratingMp4] = useState(false);
   const [mp4Progress, setMp4Progress] = useState(0);
+  const [mp4DownloadProgress, setMp4DownloadProgress] = useState<{ received: number; total: number } | null>(null);
   const [mp4Error, setMp4Error] = useState<string | null>(null);
   const [mp4SecondsPerPage, setMp4SecondsPerPage] = useState(3);
   const [mp4Crossfade, setMp4Crossfade] = useState(false);
@@ -308,6 +309,7 @@ export function BookletHub() {
     try {
       setMp4Error(null);
       setMp4Progress(0);
+      setMp4DownloadProgress(null);
       setIsGeneratingMp4(true);
       // Yield so the loading state paints before the heavy work starts.
       await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -315,6 +317,8 @@ export function BookletHub() {
         secondsPerPage: mp4SecondsPerPage,
         crossfade: mp4Crossfade,
         onProgress: setMp4Progress,
+        onDownloadProgress: (received, total) =>
+          setMp4DownloadProgress({ received, total }),
       });
       const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
       await shareOrDownloadFile(blob, `${safeTitle}.mp4`, 'video/mp4');
@@ -573,14 +577,24 @@ export function BookletHub() {
                 />
               </div>
               <p className="text-xs text-muted-foreground font-bold text-center">
-                {mp4Progress < 10
-                  ? 'Loading encoder…'
-                  : mp4Progress < 45
-                  ? 'Rendering pages…'
-                  : mp4Progress < 67
-                  ? 'Preparing frames…'
-                  : 'Encoding video…'}{' '}
-                {mp4Progress}%
+                {mp4Progress < 10 ? (
+                  mp4DownloadProgress && mp4DownloadProgress.total > 0 ? (
+                    <>
+                      Downloading encoder…{' '}
+                      {(mp4DownloadProgress.received / 1_048_576).toFixed(1)} MB
+                      {' / '}
+                      {(mp4DownloadProgress.total / 1_048_576).toFixed(1)} MB
+                    </>
+                  ) : (
+                    'Loading encoder…'
+                  )
+                ) : mp4Progress < 45 ? (
+                  <>Rendering pages… {mp4Progress}%</>
+                ) : mp4Progress < 67 ? (
+                  <>Preparing frames… {mp4Progress}%</>
+                ) : (
+                  <>Encoding video… {mp4Progress}%</>
+                )}
               </p>
             </div>
           )}
