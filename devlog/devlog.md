@@ -22,6 +22,7 @@ Change Log
 - change stamps to stickers in code/db
 - cat stickers
 - create sample booklet
+- exiting empty page deletes it
 
 2026-07-26 Sunday
 - revise stamp package file format
