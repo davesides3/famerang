@@ -103,6 +103,10 @@ export function BookletHub() {
   // When true the FFmpeg core was already in memory, so we suppress the
   // byte-counter and show "Loading encoder… (cached)" instead.
   const [mp4EncoderWasCached, setMp4EncoderWasCached] = useState(false);
+  // Elapsed-seconds counter shown while ff.load() is instantiating the WASM
+  // module (progress 2–9%).  Ticks every second via a useEffect interval.
+  const [mp4LoadElapsed, setMp4LoadElapsed] = useState(0);
+  const mp4LoadStartRef = useRef<number | null>(null);
   const [mp4SecondsPerPage, setMp4SecondsPerPage] = useState(3);
   const [mp4Crossfade, setMp4Crossfade] = useState(false);
 
@@ -137,6 +141,24 @@ export function BookletHub() {
       setPages(serverPages);
     }
   }, [serverPages, draggedIdx]);
+
+  // Tick an elapsed-seconds counter while the WASM module is instantiating
+  // (mp4Progress 2–9%).  This gives the user visible feedback that the app
+  // hasn't frozen — ff.load() can take 5–20 s on mobile.
+  useEffect(() => {
+    if (!isGeneratingMp4 || mp4Progress < 2 || mp4Progress >= 10) {
+      mp4LoadStartRef.current = null;
+      return;
+    }
+    if (mp4LoadStartRef.current === null) {
+      mp4LoadStartRef.current = Date.now();
+      setMp4LoadElapsed(0);
+    }
+    const id = setInterval(() => {
+      setMp4LoadElapsed(Math.round((Date.now() - mp4LoadStartRef.current!) / 1000));
+    }, 500);
+    return () => clearInterval(id);
+  }, [isGeneratingMp4, mp4Progress]);
 
   // While the Export or Settings sub-view is open, the shared header's nav
   // button becomes a "Close" action that returns to this page-list screen
@@ -319,7 +341,9 @@ export function BookletHub() {
       setMp4Progress(0);
       setMp4DownloadProgress(null);
       setMp4SecondsRemaining(null);
+      setMp4LoadElapsed(0);
       mp4EncodeStartRef.current = null;
+      mp4LoadStartRef.current = null;
       setMp4EncoderWasCached(isEncoderCached());
       setIsGeneratingMp4(true);
       // Yield so the loading state paints before the heavy work starts.
@@ -617,19 +641,26 @@ export function BookletHub() {
                 />
               </div>
               <p className="text-xs text-muted-foreground font-bold text-center">
-                {mp4Progress < 10 ? (
+                {mp4Progress < 2 ? (
+                  // Phase 1: dynamic imports + CDN download (usually instant when cached)
                   mp4EncoderWasCached ? (
-                    'Loading encoder… (cached)'
-                  ) : mp4DownloadProgress && mp4DownloadProgress.total > 0 ? (
-                    <>
-                      Downloading encoder…{' '}
-                      {(mp4DownloadProgress.received / 1_048_576).toFixed(1)} MB
-                      {' / '}
-                      {(mp4DownloadProgress.total / 1_048_576).toFixed(1)} MB
-                    </>
-                  ) : (
                     'Loading encoder…'
+                  ) : mp4DownloadProgress ? (() => {
+                    // Use the known ~26 MB WASM size when CDN omits Content-Length.
+                    const KNOWN_WASM_BYTES = 26_214_400;
+                    const received = mp4DownloadProgress.received;
+                    const total = mp4DownloadProgress.total > 0
+                      ? mp4DownloadProgress.total
+                      : KNOWN_WASM_BYTES;
+                    const receivedMB = (received / 1_048_576).toFixed(1);
+                    const totalMB = (total / 1_048_576).toFixed(0);
+                    return <>Downloading encoder… {receivedMB} / {totalMB} MB</>;
+                  })() : (
+                    'Downloading encoder…'
                   )
+                ) : mp4Progress < 10 ? (
+                  // Phase 2: ff.load() — WASM instantiation (5–20 s on mobile)
+                  <>Starting encoder… {mp4LoadElapsed > 0 ? `${mp4LoadElapsed}s` : ''}</>
                 ) : mp4Progress < 45 ? (
                   <>Rendering pages… {mp4Progress}%</>
                 ) : mp4Progress < 67 ? (

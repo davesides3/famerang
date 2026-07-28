@@ -175,6 +175,11 @@ export async function generateMp4(
     ]);
     dbg('toBlobURL — both blob URLs ready');
 
+    // Signal that the download phase is done; the next phase is WASM
+    // instantiation (ff.load), which can take 5–20 s on mobile.
+    // Reporting 2% lets the UI distinguish "downloading" from "instantiating".
+    report(2);
+
     dbg('ff.load() — start (instantiating WASM module)');
     await ff.load({ coreURL, wasmURL });
     _encoderLoaded = true;
