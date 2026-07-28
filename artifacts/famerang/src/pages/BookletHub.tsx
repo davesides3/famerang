@@ -22,7 +22,10 @@ import { useHeaderClose } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
 import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
-import { generateDraftPdf, isLargeDraftPdf, estimateDraftPdfBytes } from '@/lib/pdf';
+import {
+  generateDraftPdf,  isLargeDraftPdf,  estimateDraftPdfBytes,
+  generatePrintPdf,  isLargePrintPdf,  estimatePrintPdfBytes,
+} from '@/lib/pdf';
 import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhotoExportBytes } from '@/lib/photoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
@@ -80,6 +83,7 @@ export function BookletHub() {
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingPrintPdf, setIsGeneratingPrintPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
   const [isSendingPhotos, setIsSendingPhotos] = useState(false);
@@ -89,6 +93,7 @@ export function BookletHub() {
   // estimated size instead of immediately starting; a second tap on
   // "Send Anyway" confirms and proceeds.
   const [confirmLargePdf, setConfirmLargePdf] = useState(false);
+  const [confirmLargePrintPdf, setConfirmLargePrintPdf] = useState(false);
   const [confirmLargePhotos, setConfirmLargePhotos] = useState(false);
 
   // Changing trim size when pages already have photos may distort those
@@ -257,6 +262,31 @@ export function BookletHub() {
     }
   };
 
+  const handlePrintPdfClick = () => {
+    if (isLargePrintPdf(pages.length) && !confirmLargePrintPdf) {
+      setConfirmLargePrintPdf(true);
+      return;
+    }
+    handlePrintPdf();
+  };
+
+  const handlePrintPdf = async () => {
+    if (!booklet) return;
+    try {
+      setConfirmLargePrintPdf(false);
+      setPdfError(null);
+      setIsGeneratingPrintPdf(true);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const blob = await generatePrintPdf(booklet, pages);
+      const filename = `${booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-print.pdf`;
+      await shareOrDownloadFile(blob, filename, 'application/pdf');
+    } catch (err: any) {
+      setPdfError(err.message || 'Could not generate the PDF. Please try again.');
+    } finally {
+      setIsGeneratingPrintPdf(false);
+    }
+  };
+
   const handleSendPhotosClick = () => {
     if (isLargePhotoExport(booklet, pages.length) && !confirmLargePhotos) {
       setConfirmLargePhotos(true);
@@ -358,7 +388,7 @@ export function BookletHub() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-foreground">Send Draft PDF</p>
-              <p className="text-sm text-muted-foreground">A quick-preview PDF with every page, ready to print or share.</p>
+              <p className="text-sm text-muted-foreground">Screen-quality PDF (150 dpi) — great for previewing and sharing digitally.</p>
             </div>
             <PaperButton
               type="button"
@@ -380,6 +410,38 @@ export function BookletHub() {
                 This booklet has {pages.length} pages, so the draft PDF will be large (about{' '}
                 {formatEstimatedSize(estimateDraftPdfBytes(pages.length))}) -- it may be slow to send or bounce off email
                 attachment limits. Tap Send again to continue anyway.
+              </p>
+            </div>
+          )}
+
+          <PaperCard className="flex items-center gap-4 p-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <FileDown className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground">Send Print PDF</p>
+              <p className="text-sm text-muted-foreground">Full-resolution PDF (300 dpi) — ready for home printing or an online print service.</p>
+            </div>
+            <PaperButton
+              type="button"
+              onClick={handlePrintPdfClick}
+              disabled={isGeneratingPrintPdf}
+              className="shrink-0"
+              data-testid="send-print-pdf"
+            >
+              {isGeneratingPrintPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : confirmLargePrintPdf ? 'Send Anyway' : 'Send'}
+            </PaperButton>
+          </PaperCard>
+          {confirmLargePrintPdf && (
+            <div
+              className="bg-amber-50 text-amber-800 border-2 border-amber-200 p-3 rounded-xl flex items-start gap-2.5 -mt-1"
+              data-testid="large-print-pdf-warning"
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs font-bold">
+                This booklet has {pages.length} pages, so the print PDF will be large (about{' '}
+                {formatEstimatedSize(estimatePrintPdfBytes(pages.length))}) — it may be slow to generate and send.
+                Tap Send again to continue anyway.
               </p>
             </div>
           )}

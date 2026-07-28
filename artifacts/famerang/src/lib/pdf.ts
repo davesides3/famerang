@@ -1,47 +1,59 @@
-import { jsPDF } from 'jspdf';
+ import { jsPDF } from 'jspdf';
 import { renderPageToCanvas } from './compositing';
 import { getTrimSize } from './types';
 import type { Booklet, PageWithStickers } from './types';
 
-// Draft renders are capped at this many pixels on the long edge, regardless
-// of trim size, so the PDF stays small even for large booklets.
-const DRAFT_LONG_EDGE = 900;
+// Trim sizes are authored at 300 DPI. Scale factor for other DPI targets:
+//   150 DPI → 0.5 × native pixels
+//   300 DPI → 1.0 × native pixels
+const NATIVE_DPI = 300;
+const DRAFT_DPI  = 150;
+const PRINT_DPI  = 300;
+
 const BYTES_PER_PIXEL_ESTIMATE = 0.09;
 
 /** Anything estimated above this is flagged as a large export (matches the
  * threshold used for photo exports). */
 export const LARGE_PDF_EXPORT_BYTES = 25 * 1024 * 1024;
 
+// Conservative per-page pixel area at each DPI, using the largest trim (9×9).
+// widthPx = 2700 at 300 DPI → 1350 at 150 DPI.
+const DRAFT_PIXELS_PER_PAGE = 1350 * 1350; // 150 DPI, 9×9 upper bound
+const PRINT_PIXELS_PER_PAGE = 2700 * 2700; // 300 DPI, 9×9 upper bound
+
 export function estimateDraftPdfBytes(pageCount: number): number {
-  // Conservative square estimate -- portrait pages are slightly smaller,
-  // but DRAFT_LONG_EDGE^2 keeps the warning threshold safe for all sizes.
-  return pageCount * DRAFT_LONG_EDGE * DRAFT_LONG_EDGE * BYTES_PER_PIXEL_ESTIMATE;
+  return pageCount * DRAFT_PIXELS_PER_PAGE * BYTES_PER_PIXEL_ESTIMATE;
 }
 
 export function isLargeDraftPdf(pageCount: number): boolean {
   return estimateDraftPdfBytes(pageCount) > LARGE_PDF_EXPORT_BYTES;
 }
 
+export function estimatePrintPdfBytes(pageCount: number): number {
+  return pageCount * PRINT_PIXELS_PER_PAGE * BYTES_PER_PIXEL_ESTIMATE;
+}
+
+export function isLargePrintPdf(pageCount: number): boolean {
+  return estimatePrintPdfBytes(pageCount) > LARGE_PDF_EXPORT_BYTES;
+}
+
 /**
- * Generates a fast 1-up draft PDF: one portrait sheet per page, with the
- * composited page image scaled to fill the available area while preserving
- * the booklet's trim aspect ratio. Rendered at a reduced resolution so it
- * stays quick to generate and share, even on a phone.
+ * Core PDF generator. Renders every page at the given DPI and packs them
+ * into a 1-up portrait PDF, one sheet per page.
  */
-export async function generateDraftPdf(
+async function generatePdfAtDpi(
   booklet: Booklet,
   pages: PageWithStickers[],
+  targetDpi: number,
+  jpegQuality: number,
 ): Promise<Blob> {
   const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
   const trimAspect = widthPx / heightPx;
 
-  // Draft render dimensions: scale so the long edge equals DRAFT_LONG_EDGE.
-  const draftW = trimAspect >= 1
-    ? DRAFT_LONG_EDGE
-    : Math.round(DRAFT_LONG_EDGE * trimAspect);
-  const draftH = trimAspect >= 1
-    ? Math.round(DRAFT_LONG_EDGE / trimAspect)
-    : DRAFT_LONG_EDGE;
+  // Scale render dimensions from native (300 DPI) to the target DPI.
+  const scale   = targetDpi / NATIVE_DPI;
+  const renderW = Math.round(widthPx  * scale);
+  const renderH = Math.round(heightPx * scale);
 
   const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
   const pageWidth  = pdf.internal.pageSize.getWidth();
@@ -53,11 +65,9 @@ export async function generateDraftPdf(
   const availH = pageHeight - margin * 2;
   let boxW: number, boxH: number;
   if (trimAspect >= availW / availH) {
-    // Wider than the available slot — constrain to available width.
     boxW = availW;
     boxH = boxW / trimAspect;
   } else {
-    // Taller than the available slot — constrain to available height.
     boxH = availH;
     boxW = boxH * trimAspect;
   }
@@ -66,10 +76,32 @@ export async function generateDraftPdf(
 
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage();
-    const canvas = await renderPageToCanvas(pages[i], booklet, draftW, draftH);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    const canvas  = await renderPageToCanvas(pages[i], booklet, renderW, renderH);
+    const dataUrl = canvas.toDataURL('image/jpeg', jpegQuality);
     pdf.addImage(dataUrl, 'JPEG', x, y, boxW, boxH);
   }
 
   return pdf.output('blob');
+}
+
+/**
+ * Draft PDF — 150 DPI images, optimised for screen viewing and sharing.
+ * Smaller file, fast to generate on a phone.
+ */
+export async function generateDraftPdf(
+  booklet: Booklet,
+  pages: PageWithStickers[],
+): Promise<Blob> {
+  return generatePdfAtDpi(booklet, pages, DRAFT_DPI, 0.82);
+}
+
+/**
+ * Print PDF — 300 DPI images (full trim resolution), suitable for home
+ * printing or uploading to an online print service.
+ */
+export async function generatePrintPdf(
+  booklet: Booklet,
+  pages: PageWithStickers[],
+): Promise<Blob> {
+  return generatePdfAtDpi(booklet, pages, PRINT_DPI, 0.92);
 }
