@@ -109,7 +109,7 @@ export function Home() {
 
                 {booklet.updatedAt > (booklet.lastBackedUpAt ?? 0) && (
                   <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 mt-2">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Not backed up
+                    <AlertTriangle className="w-3.5 h-3.5" /> Not backed up (Archive)
                   </div>
                 )}
               </PaperCard>

@@ -584,7 +584,7 @@ export function BookletHub() {
             <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">{booklet.title}</h1>
             {isUnbackedUp && (
               <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700">
-                <AlertTriangle className="w-3.5 h-3.5" /> Not backed up
+                <AlertTriangle className="w-3.5 h-3.5" /> Not backed up (Archive)
               </div>
             )}
           </div>
