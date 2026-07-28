@@ -16,6 +16,7 @@ import {
   Images,
   Trash2,
   Archive,
+  Video,
 } from 'lucide-react';
 import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -27,6 +28,7 @@ import {
   generatePrintPdf,  isLargePrintPdf,  estimatePrintPdfBytes,
 } from '@/lib/pdf';
 import { renderPagesAsJpegBlobs, zipPhotoBlobs, isLargePhotoExport, estimatePhotoExportBytes } from '@/lib/photoExport';
+import { generateMp4 } from '@/lib/videoExport';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { PaperCard } from '@/components/ui/PaperCard';
 import { TRIM_SIZES, FONT_FAMILY_OPTIONS, getTrimSize } from '@/lib/types';
@@ -88,6 +90,12 @@ export function BookletHub() {
 
   const [isSendingPhotos, setIsSendingPhotos] = useState(false);
   const [photosError, setPhotosError] = useState<string | null>(null);
+
+  const [isGeneratingMp4, setIsGeneratingMp4] = useState(false);
+  const [mp4Progress, setMp4Progress] = useState(0);
+  const [mp4Error, setMp4Error] = useState<string | null>(null);
+  const [mp4SecondsPerPage, setMp4SecondsPerPage] = useState(3);
+  const [mp4Crossfade, setMp4Crossfade] = useState(false);
 
   // "Send" for a very large export shows an inline warning with the
   // estimated size instead of immediately starting; a second tap on
@@ -295,6 +303,29 @@ export function BookletHub() {
     handleSendPhotos();
   };
 
+  const handleMp4Export = async () => {
+    if (!booklet) return;
+    try {
+      setMp4Error(null);
+      setMp4Progress(0);
+      setIsGeneratingMp4(true);
+      // Yield so the loading state paints before the heavy work starts.
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const blob = await generateMp4(booklet, pages, {
+        secondsPerPage: mp4SecondsPerPage,
+        crossfade: mp4Crossfade,
+        onProgress: setMp4Progress,
+      });
+      const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
+      await shareOrDownloadFile(blob, `${safeTitle}.mp4`, 'video/mp4');
+      setMp4Progress(100);
+    } catch (err: any) {
+      setMp4Error(err.message || 'Could not generate the video. Please try again.');
+    } finally {
+      setIsGeneratingMp4(false);
+    }
+  };
+
   const handleSendPhotos = async () => {
     if (!booklet) return;
     try {
@@ -478,6 +509,89 @@ export function BookletHub() {
                 it may be slow to send over cellular or bounce off email attachment limits. Tap Send again to continue
                 anyway.
               </p>
+            </div>
+          )}
+
+          {/* ── MP4 Video Export ─────────────────────────────────────────── */}
+          <PaperCard className="flex flex-col gap-3 p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Video className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-foreground">Export as Video (MP4)</p>
+                <p className="text-sm text-muted-foreground">
+                  A shareable slideshow — saves to Camera Roll on iOS &amp; Android.
+                </p>
+              </div>
+              <PaperButton
+                type="button"
+                onClick={handleMp4Export}
+                disabled={isGeneratingMp4}
+                className="shrink-0"
+                data-testid="generate-mp4"
+              >
+                {isGeneratingMp4 ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Generate'}
+              </PaperButton>
+            </div>
+
+            {/* Inline settings */}
+            <div className="flex flex-col gap-3 pt-2 border-t border-border/50">
+              <div className="flex items-center justify-between gap-4">
+                <label className="text-sm font-bold text-foreground">Seconds per page</label>
+                <select
+                  value={mp4SecondsPerPage}
+                  onChange={(e) => setMp4SecondsPerPage(Number(e.target.value))}
+                  disabled={isGeneratingMp4}
+                  className="text-sm border-2 border-border rounded-lg px-2 py-1 bg-background text-foreground focus:border-primary focus:outline-none"
+                >
+                  {[2, 3, 4, 5].map((s) => (
+                    <option key={s} value={s}>{s}s</option>
+                  ))}
+                </select>
+              </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={mp4Crossfade}
+                  onChange={(e) => setMp4Crossfade(e.target.checked)}
+                  disabled={isGeneratingMp4}
+                  className="w-4 h-4 accent-primary rounded"
+                />
+                <span className="text-sm font-bold text-foreground">Crossfade between pages</span>
+              </label>
+            </div>
+          </PaperCard>
+
+          {/* MP4 progress bar */}
+          {isGeneratingMp4 && (
+            <div className="flex flex-col gap-1.5 -mt-1" data-testid="mp4-progress">
+              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${mp4Progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground font-bold text-center">
+                {mp4Progress < 10
+                  ? 'Loading encoder…'
+                  : mp4Progress < 45
+                  ? 'Rendering pages…'
+                  : mp4Progress < 67
+                  ? 'Preparing frames…'
+                  : 'Encoding video…'}{' '}
+                {mp4Progress}%
+              </p>
+            </div>
+          )}
+
+          {mp4Error && (
+            <div
+              className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-3 rounded-xl flex items-start gap-2.5 -mt-1"
+              data-testid="mp4-error"
+            >
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs font-bold">{mp4Error}</p>
             </div>
           )}
         </div>
