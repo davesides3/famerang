@@ -23,7 +23,7 @@ import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPag
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
-import { shareOrDownloadFile, shareOrDownloadFiles } from '@/lib/share';
+import { shareOrDownloadFile, shareOrDownloadFiles, isTouchDevice } from '@/lib/share';
 import {
   generateDraftPdf,  isLargeDraftPdf,  estimateDraftPdfBytes,
   generatePrintPdf,  isLargePrintPdf,  estimatePrintPdfBytes,
@@ -93,6 +93,11 @@ export function BookletHub() {
   const [photosError, setPhotosError] = useState<string | null>(null);
 
   const [isGeneratingMp4, setIsGeneratingMp4] = useState(false);
+  // On mobile the Web Share API requires a fresh user gesture — the long async
+  // encode discards the original tap's gesture context.  After generation we
+  // park the blob here and show a "Tap to Share" button instead of calling
+  // navigator.share() directly from the async handler.
+  const [mp4ReadyBlob, setMp4ReadyBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const [mp4Progress, setMp4Progress] = useState(0);
   const [mp4DownloadProgress, setMp4DownloadProgress] = useState<{ received: number; total: number } | null>(null);
   const [mp4Error, setMp4Error] = useState<string | null>(null);
@@ -346,6 +351,7 @@ export function BookletHub() {
       setMp4SecondsRemaining(null);
       setMp4LoadElapsed(0);
       setMp4PageProgress(null);
+      setMp4ReadyBlob(null);
       mp4EncodeStartRef.current = null;
       mp4LoadStartRef.current = null;
       setMp4EncoderWasCached(isEncoderCached());
@@ -385,12 +391,20 @@ export function BookletHub() {
           setMp4PageProgress({ current, total, phase }),
       });
       const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
-      // eslint-disable-next-line no-console
-      console.log('[VideoExport] shareOrDownloadFile — start', { size: blob.size });
-      await shareOrDownloadFile(blob, `${safeTitle}.mp4`, 'video/mp4');
-      // eslint-disable-next-line no-console
-      console.log('[VideoExport] shareOrDownloadFile — done');
+      const mp4Filename = `${safeTitle}.mp4`;
       setMp4Progress(100);
+      if (isTouchDevice()) {
+        // On mobile, navigator.share() requires a live user-gesture context.
+        // The long async encode has discarded the original tap's context, so
+        // we park the blob and let the user tap a dedicated button to share.
+        setMp4ReadyBlob({ blob, filename: mp4Filename });
+      } else {
+        // eslint-disable-next-line no-console
+        console.log('[VideoExport] shareOrDownloadFile — start', { size: blob.size });
+        await shareOrDownloadFile(blob, mp4Filename, 'video/mp4');
+        // eslint-disable-next-line no-console
+        console.log('[VideoExport] shareOrDownloadFile — done');
+      }
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error('[VideoExport] handleMp4Export caught error', err);
@@ -669,6 +683,21 @@ export function BookletHub() {
                 )}
               </p>
             </div>
+          )}
+
+          {mp4ReadyBlob && (
+            <PaperButton
+              type="button"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={async () => {
+                const { blob, filename } = mp4ReadyBlob;
+                setMp4ReadyBlob(null);
+                await shareOrDownloadFile(blob, filename, 'video/mp4');
+              }}
+            >
+              <Share2 className="w-4 h-4" />
+              Tap to Share Video
+            </PaperButton>
           )}
 
           {mp4Error && (

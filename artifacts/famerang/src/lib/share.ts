@@ -10,7 +10,7 @@
  * touchscreen laptops and desktops where a mouse/trackpad is also present,
  * since those report `hover: hover` even if a touchscreen exists.
  */
-function isTouchDevice(): boolean {
+export function isTouchDevice(): boolean {
   return typeof window !== 'undefined' &&
     window.matchMedia('(pointer: coarse) and (hover: none)').matches;
 }
