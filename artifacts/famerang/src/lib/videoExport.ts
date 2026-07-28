@@ -37,6 +37,16 @@ const TRANSITION_FPS = 24;
 // Transition length in frames (12 frames @ 24 fps = 0.5 s).
 const TRANSITION_FRAMES = 12;
 
+/** Debug logger — all video-export log lines are prefixed [VideoExport] so
+ *  they are easy to filter in DevTools.  Includes a millisecond timestamp
+ *  relative to the start of the export so you can spot hangs at a glance. */
+let _exportStart = 0;
+function dbg(msg: string, ...args: unknown[]) {
+  const elapsed = _exportStart ? `+${Date.now() - _exportStart}ms` : '';
+  // eslint-disable-next-line no-console
+  console.log(`[VideoExport] ${elapsed} ${msg}`, ...args);
+}
+
 /** Returns H.264-compatible video dimensions (both must be even). */
 function getVideoSize(booklet: Booklet): { w: number; h: number } {
   const { widthPx, heightPx } = getTrimSize(booklet.canvasSize);
@@ -88,6 +98,9 @@ export async function generateMp4(
   pages: PageWithStickers[],
   options: VideoExportOptions,
 ): Promise<Blob> {
+  _exportStart = Date.now();
+  dbg('generateMp4 started', { pages: pages.length, secondsPerPage: options.secondsPerPage, crossfade: options.crossfade });
+
   if (pages.length === 0) throw new Error('No pages to export.');
 
   const { onProgress, onDownloadProgress } = options;
@@ -100,12 +113,29 @@ export async function generateMp4(
   // ── 1. Lazy-load FFmpeg.wasm ──────────────────────────────────────────────
   // Dynamic imports keep the ~26 MB WASM out of the main app bundle.
   report(1);
-  const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
-    import('@ffmpeg/ffmpeg'),
-    import('@ffmpeg/util'),
-  ]);
+  dbg('dynamic import @ffmpeg/ffmpeg + @ffmpeg/util — start');
+  let FFmpeg: any, toBlobURL: any;
+  try {
+    const [ffmpegMod, utilMod] = await Promise.all([
+      import('@ffmpeg/ffmpeg'),
+      import('@ffmpeg/util'),
+    ]);
+    FFmpeg = ffmpegMod.FFmpeg;
+    toBlobURL = utilMod.toBlobURL;
+    dbg('dynamic import — done');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[VideoExport] dynamic import failed', err);
+    throw err;
+  }
 
   const ff = new FFmpeg();
+
+  // Attach the FFmpeg log listener so WASM stderr is visible in DevTools.
+  ff.on('log', ({ type, message }: { type: string; message: string }) => {
+    // eslint-disable-next-line no-console
+    console.log(`[VideoExport][ffmpeg:${type}] ${message}`);
+  });
 
   // Single-threaded core loaded from CDN — no SharedArrayBuffer required.
   // On first use the browser (or Workbox runtime cache) fetches ~26 MB from
@@ -123,18 +153,35 @@ export async function generateMp4(
       onDownloadProgress?.(received, total);
     };
 
+    dbg('toBlobURL — fetching ffmpeg-core.js + ffmpeg-core.wasm from CDN', CDN);
+    let lastJsLog = 0, lastWasmLog = 0;
     const [coreURL, wasmURL] = await Promise.all([
-      toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript', true, (e) => {
+      toBlobURL(`${CDN}/ffmpeg-core.js`, 'text/javascript', true, (e: { received: number; total: number }) => {
         jsReceived = e.received; jsTotal = e.total; reportDownload();
+        const now = Date.now();
+        if (now - lastJsLog > 2000) {
+          dbg(`  ffmpeg-core.js  ${(e.received / 1024).toFixed(0)} KB / ${e.total > 0 ? (e.total / 1024).toFixed(0) + ' KB' : '?'}`);
+          lastJsLog = now;
+        }
       }),
-      toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm', true, (e) => {
+      toBlobURL(`${CDN}/ffmpeg-core.wasm`, 'application/wasm', true, (e: { received: number; total: number }) => {
         wasmReceived = e.received; wasmTotal = e.total; reportDownload();
+        const now = Date.now();
+        if (now - lastWasmLog > 2000) {
+          dbg(`  ffmpeg-core.wasm ${(e.received / 1_048_576).toFixed(1)} MB / ${e.total > 0 ? (e.total / 1_048_576).toFixed(1) + ' MB' : '?'}`);
+          lastWasmLog = now;
+        }
       }),
     ]);
+    dbg('toBlobURL — both blob URLs ready');
 
+    dbg('ff.load() — start (instantiating WASM module)');
     await ff.load({ coreURL, wasmURL });
     _encoderLoaded = true;
+    dbg('ff.load() — done');
   } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[VideoExport] encoder load failed', err);
     // Network errors here almost always mean the device is offline and the
     // encoder hasn't been cached yet from a previous export.
     const isNetworkError =
@@ -151,11 +198,21 @@ export async function generateMp4(
 
   // ── 2. Render each page to a canvas ──────────────────────────────────────
   const { w, h } = getVideoSize(booklet);
+  dbg(`rendering ${pages.length} pages at ${w}×${h}`);
   const canvases: HTMLCanvasElement[] = [];
   for (let i = 0; i < pages.length; i++) {
-    canvases.push(await renderPageToCanvas(pages[i], booklet, w, h));
+    dbg(`  render page ${i + 1}/${pages.length} — start`);
+    try {
+      canvases.push(await renderPageToCanvas(pages[i], booklet, w, h));
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[VideoExport] renderPageToCanvas failed on page ${i + 1}`, err);
+      throw err;
+    }
+    dbg(`  render page ${i + 1}/${pages.length} — done`);
     report(10 + ((i + 1) / pages.length) * 35); // 10 → 45 %
   }
+  dbg('all pages rendered');
 
   // ── 3. Write frames to MEMFS + build concat list ─────────────────────────
   //
@@ -174,6 +231,11 @@ export async function generateMp4(
   const transitionDuration =
     options.crossfade ? TRANSITION_FRAMES / TRANSITION_FPS : 0;
 
+  const totalFrames = options.crossfade
+    ? pages.length + (pages.length - 1) * TRANSITION_FRAMES
+    : pages.length;
+  dbg(`writing ${totalFrames} frame(s) to MEMFS — start`);
+
   for (let i = 0; i < canvases.length; i++) {
     const hasNext = i < canvases.length - 1;
 
@@ -183,7 +245,13 @@ export async function generateMp4(
       options.secondsPerPage - (hasNext ? transitionDuration : 0);
 
     const stillName = `f${String(fileIdx++).padStart(5, '0')}.jpg`;
-    await writeJpeg(canvases[i], stillName);
+    try {
+      await writeJpeg(canvases[i], stillName);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(`[VideoExport] writeJpeg failed for ${stillName}`, err);
+      throw err;
+    }
     concatLines.push(`file '${stillName}'`);
     concatLines.push(`duration ${stillDuration.toFixed(4)}`);
 
@@ -201,6 +269,7 @@ export async function generateMp4(
 
     report(45 + ((i + 1) / canvases.length) * 20); // 45 → 65 %
   }
+  dbg(`MEMFS write done — ${fileIdx} file(s) written`);
 
   // The concat demuxer requires the last entry to be listed a second time
   // WITHOUT a `duration` line to correctly mark the final frame's end pts.
@@ -211,31 +280,52 @@ export async function generateMp4(
 
   await ff.writeFile('concat.txt', concatLines.join('\n'));
   report(67);
+  dbg('concat.txt written');
 
   // ── 4. H.264 encode ───────────────────────────────────────────────────────
-  ff.on('progress', ({ progress }) => {
+  ff.on('progress', ({ progress }: { progress: number }) => {
     // `progress` from FFmpeg.wasm is 0–1 (or occasionally slightly negative/
     // >1 on variable-duration inputs); clamp it.
     const clamped = Math.max(0, Math.min(1, progress));
     report(67 + clamped * 32); // 67 → 99 %
   });
 
-  await ff.exec([
-    '-f', 'concat',
-    '-safe', '0',
-    '-i', 'concat.txt',
-    '-c:v', 'libx264',
-    '-pix_fmt', 'yuv420p',    // broadest device compatibility (iOS, Android)
-    '-preset', 'fast',
-    '-movflags', '+faststart', // moov atom first → instant playback
-    'output.mp4',
-  ]);
+  dbg('ff.exec() (H.264 encode) — start');
+  try {
+    await ff.exec([
+      '-f', 'concat',
+      '-safe', '0',
+      '-i', 'concat.txt',
+      '-c:v', 'libx264',
+      '-pix_fmt', 'yuv420p',    // broadest device compatibility (iOS, Android)
+      '-preset', 'fast',
+      '-movflags', '+faststart', // moov atom first → instant playback
+      'output.mp4',
+    ]);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[VideoExport] ff.exec() failed', err);
+    throw err;
+  }
+  dbg('ff.exec() — done');
 
-  const data = await ff.readFile('output.mp4');
+  dbg('ff.readFile(output.mp4) — start');
+  let data: Uint8Array | string;
+  try {
+    data = await ff.readFile('output.mp4');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[VideoExport] ff.readFile() failed', err);
+    throw err;
+  }
+  dbg(`ff.readFile() — done, type=${typeof data}, byteLength=${typeof data !== 'string' ? (data as Uint8Array).byteLength : 'n/a (string)'}`);
+
   // readFile returns Uint8Array | string. Normalise to an ArrayBuffer so the
   // Blob constructor accepts it regardless of whether the buffer is backed by
   // a regular ArrayBuffer or a SharedArrayBuffer (which some WASM builds use).
   const bytes: Uint8Array =
     typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
-  return new Blob([bytes.buffer as ArrayBuffer], { type: 'video/mp4' });
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'video/mp4' });
+  dbg(`blob ready — size=${(blob.size / 1_048_576).toFixed(2)} MB`);
+  return blob;
 }

@@ -355,9 +355,15 @@ export function BookletHub() {
           setMp4DownloadProgress({ received, total }),
       });
       const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
+      // eslint-disable-next-line no-console
+      console.log('[VideoExport] shareOrDownloadFile — start', { size: blob.size });
       await shareOrDownloadFile(blob, `${safeTitle}.mp4`, 'video/mp4');
+      // eslint-disable-next-line no-console
+      console.log('[VideoExport] shareOrDownloadFile — done');
       setMp4Progress(100);
     } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error('[VideoExport] handleMp4Export caught error', err);
       setMp4Error(err.message || 'Could not generate the video. Please try again.');
     } finally {
       setIsGeneratingMp4(false);
