@@ -17,6 +17,7 @@ import {
   Trash2,
   Archive,
   Video,
+  Printer,
 } from 'lucide-react';
 import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -481,22 +482,18 @@ export function BookletHub() {
         )}
 
         <div className="flex flex-col gap-3">
-          <PaperCard className="flex items-center gap-4 p-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <FileDown className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground">Send Draft PDF</p>
-              <p className="text-sm text-muted-foreground">150 dpi — good for previewing and digital sharing.</p>
-            </div>
+          <PaperCard className="flex flex-col gap-3 p-4">
+            <p className="text-sm text-muted-foreground">Lower resolution for screen viewing</p>
             <PaperButton
               type="button"
               onClick={handleDraftPdfClick}
               disabled={isGeneratingPdf}
-              className="shrink-0"
+              className="w-full flex items-center justify-center gap-2"
               data-testid="send-draft-pdf"
             >
-              {isGeneratingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : confirmLargePdf ? 'Send Anyway' : 'Send'}
+              {isGeneratingPdf
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                : <><FileDown className="w-4 h-4" /> {confirmLargePdf ? 'Send Anyway' : 'Send Draft PDF'}</>}
             </PaperButton>
           </PaperCard>
           {confirmLargePdf && (
@@ -513,22 +510,18 @@ export function BookletHub() {
             </div>
           )}
 
-          <PaperCard className="flex items-center gap-4 p-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <FileDown className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground">Send Print PDF</p>
-              <p className="text-sm text-muted-foreground">300 dpi — ready for home or professional printing.</p>
-            </div>
+          <PaperCard className="flex flex-col gap-3 p-4">
+            <p className="text-sm text-muted-foreground">Higher resolution for printing</p>
             <PaperButton
               type="button"
               onClick={handlePrintPdfClick}
               disabled={isGeneratingPrintPdf}
-              className="shrink-0"
+              className="w-full flex items-center justify-center gap-2"
               data-testid="send-print-pdf"
             >
-              {isGeneratingPrintPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : confirmLargePrintPdf ? 'Send Anyway' : 'Send'}
+              {isGeneratingPrintPdf
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                : <><Printer className="w-4 h-4" /> {confirmLargePrintPdf ? 'Send Anyway' : 'Send Print PDF'}</>}
             </PaperButton>
           </PaperCard>
           {confirmLargePrintPdf && (
@@ -545,24 +538,18 @@ export function BookletHub() {
             </div>
           )}
 
-          <PaperCard className="flex items-center gap-4 p-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Images className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-foreground">Send Photos</p>
-              <p className="text-sm text-muted-foreground">
-                Full-res images of every page — save to Google Photos or Apple Photos.
-              </p>
-            </div>
+          <PaperCard className="flex flex-col gap-3 p-4">
+            <p className="text-sm text-muted-foreground">For photo book printing</p>
             <PaperButton
               type="button"
               onClick={handleSendPhotosClick}
               disabled={isSendingPhotos}
-              className="shrink-0"
+              className="w-full flex items-center justify-center gap-2"
               data-testid="send-photos"
             >
-              {isSendingPhotos ? <Loader2 className="w-5 h-5 animate-spin" /> : confirmLargePhotos ? 'Send Anyway' : 'Send'}
+              {isSendingPhotos
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                : <><Images className="w-4 h-4" /> {confirmLargePhotos ? 'Send Anyway' : 'Send Photos'}</>}
             </PaperButton>
           </PaperCard>
           {confirmLargePhotos && (
@@ -582,24 +569,18 @@ export function BookletHub() {
 
           {/* ── MP4 Video Export ─────────────────────────────────────────── */}
           <PaperCard className="flex flex-col gap-3 p-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Video className="w-6 h-6 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-foreground">Send Video</p>
-                <p className="text-sm text-muted-foreground">
-                  MP4 slideshow — saves to Camera Roll on iOS &amp; Android.
-                </p>
-              </div>
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted-foreground">For sharing on mobile</p>
               <PaperButton
                 type="button"
                 onClick={handleMp4Export}
                 disabled={isGeneratingMp4}
-                className="shrink-0"
+                className="w-full flex items-center justify-center gap-2"
                 data-testid="generate-mp4"
               >
-                {isGeneratingMp4 ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Generate'}
+                {isGeneratingMp4
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+                  : <><Video className="w-4 h-4" /> Generate &amp; Send Video</>}
               </PaperButton>
             </div>
 
