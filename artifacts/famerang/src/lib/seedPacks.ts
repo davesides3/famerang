@@ -11,7 +11,7 @@ import type { Sticker, StickerPack } from './types';
 // Any device whose stored seed version is lower than this will re-seed on
 // the next app launch.  User-created packs are never touched.
 //
-const SEED_VERSION = 2;
+const SEED_VERSION = 3;
 const SEED_VERSION_KEY = 'famerang-seed-v';
 
 // ─── Pack manifest ────────────────────────────────────────────────────────────
@@ -24,16 +24,36 @@ const SEED_VERSION_KEY = 'famerang-seed-v';
 //
 const DEFAULT_PACKS: Array<{ id: string; asset: string }> = [
   {
-    id: '59d9b72c-f951-49c7-a0e4-6ce588d3aa11',
+    id: '6d9c0177-9dea-472a-8f83-ab3966620650',
+    asset: 'seed-packs/animals-barnyard.zip',
+  },
+  {
+    id: 'd3205c9b-b825-4e46-af19-e19c2626ca49',
+    asset: 'seed-packs/animals-wild.zip',
+  },
+  {
+    id: '3afdbfa1-98a5-4765-8483-abdb5065b0c6',
+    asset: 'seed-packs/birds-backyard.zip',
+  },
+  {
+    id: '1afdb7f2-974e-49ab-a75d-f46a3c8efd28',
+    asset: 'seed-packs/birds-wild.zip',
+  },
+  {
+    id: '6ebed676-a391-481f-bcc1-d8c6aaec5b97',
+    asset: 'seed-packs/cats.zip',
+  },
+  {
+    id: 'b4d38491-d500-4348-afc0-7f2c7c061280',
+    asset: 'seed-packs/construction-vehicles.zip',
+  },
+  {
+    id: 'baf7d89a-4e90-4ca7-888c-68fc3a4caa3f',
     asset: 'seed-packs/dinosaurs.zip',
   },
   {
-    id: '35cebe5f-d2c7-4a34-ae90-b7058004c493',
-    asset: 'seed-packs/black-cats.zip',
-  },
-  {
-    id: '82763403-65d8-4a34-af80-7abe5636eb19',
-    asset: 'seed-packs/construction-vehicles.zip',
+    id: 'c3de15b6-4aab-48fe-8dc4-68c075c08f61',
+    asset: 'seed-packs/dogs.zip',
   },
 ];
 
@@ -130,6 +150,24 @@ export async function seedDefaultPacks(): Promise<void> {
   const existingIds = new Set(existingPackages.map((p) => p.id));
   const maxOrder = existingPackages.reduce((m, p) => Math.max(m, p.sortOrder ?? -1), -1);
   let nextOrder = maxOrder + 1;
+
+  // Remove any old default packs that are no longer in DEFAULT_PACKS.
+  const currentDefaultIds = new Set(DEFAULT_PACKS.map((p) => p.id));
+  const oldDefaultIds = [
+    '59d9b72c-f951-49c7-a0e4-6ce588d3aa11', // old dinosaurs
+    '35cebe5f-d2c7-4a34-ae90-b7058004c493', // old black-cats
+    '82763403-65d8-4a34-af80-7abe5636eb19', // old construction-vehicles
+  ].filter((id) => !currentDefaultIds.has(id));
+  for (const id of oldDefaultIds) {
+    if (existingIds.has(id)) {
+      await db.transaction('rw', db.stickerPacks, db.stickers, db.pageStickers, async () => {
+        const stickerIds = (await db.stickers.where('packageId').equals(id).toArray()).map((s) => s.id);
+        if (stickerIds.length) await db.pageStickers.where('stickerId').anyOf(stickerIds).delete();
+        await db.stickers.where('packageId').equals(id).delete();
+        await db.stickerPacks.delete(id);
+      });
+    }
+  }
 
   for (const { id, asset } of DEFAULT_PACKS) {
     try {
