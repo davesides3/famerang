@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { ImagePlus, Type, ArrowUpFromLine, ArrowDownToLine, Sticker, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { useBooklet, usePages, usePageWithStickers, setPagePhoto, updatePageText, removePageSticker, MAX_STICKERS_PER_PAGE } from '@/lib/hooks';
+import { useBooklet, usePages, usePageWithStickers, setPagePhoto, updatePageText, removePageSticker, deletePage, MAX_STICKERS_PER_PAGE } from '@/lib/hooks';
 import { getTrimSize } from '@/lib/types';
 import { PaperButton } from '@/components/ui/PaperButton';
 import { LiveCanvas } from '@/components/LiveCanvas';
@@ -36,6 +36,18 @@ export function PageEditor() {
     }
   };
 
+  // Flush pending text, delete the page if it has no content, then navigate.
+  const exitPage = async (destination: string) => {
+    if (!pageId || !page) { setLocation(destination); return; }
+    // Flush any unsaved text first so the emptiness check is accurate.
+    if (textContent !== page.textContent) {
+      await updatePageText(pageId, textContent, page.textPlacement);
+    }
+    const isEmpty = !page.photoDataUrl && !textContent.trim() && page.stickers.length === 0;
+    if (isEmpty) await deletePage(pageId);
+    setLocation(destination);
+  };
+
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !pageId || !booklet) return;
@@ -68,11 +80,11 @@ export function PageEditor() {
   // consistent with the Export and Preview views. Page-navigation arrows
   // ride along next to Close since there's no other room on this screen.
   useHeaderClose(
-    () => setLocation(`/booklet/${bookletId}`),
+    () => exitPage(`/booklet/${bookletId}`),
     <div className="flex items-center gap-1">
       <button
         type="button"
-        onClick={() => prevPage && setLocation(`/booklet/${bookletId}/page/${prevPage.id}`)}
+        onClick={() => prevPage && exitPage(`/booklet/${bookletId}/page/${prevPage.id}`)}
         disabled={!prevPage}
         aria-label="Previous page"
         data-testid="header-prev-page"
@@ -82,7 +94,7 @@ export function PageEditor() {
       </button>
       <button
         type="button"
-        onClick={() => nextPage && setLocation(`/booklet/${bookletId}/page/${nextPage.id}`)}
+        onClick={() => nextPage && exitPage(`/booklet/${bookletId}/page/${nextPage.id}`)}
         disabled={!nextPage}
         aria-label="Next page"
         data-testid="header-next-page"
