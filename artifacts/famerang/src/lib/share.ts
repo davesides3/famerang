@@ -4,9 +4,15 @@
  * this returns false and we skip the OS share sheet in favour of a direct
  * browser download.
  */
+/**
+ * Returns true only on touch-primary devices (phones, tablets) where the
+ * primary pointer is coarse AND hover is unavailable. This excludes
+ * touchscreen laptops and desktops where a mouse/trackpad is also present,
+ * since those report `hover: hover` even if a touchscreen exists.
+ */
 function isTouchDevice(): boolean {
   return typeof window !== 'undefined' &&
-    window.matchMedia('(pointer: coarse)').matches;
+    window.matchMedia('(pointer: coarse) and (hover: none)').matches;
 }
 
 /**
