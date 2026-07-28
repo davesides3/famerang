@@ -582,20 +582,27 @@ export function BookletHub() {
 
             {/* Inline settings */}
             <div className="flex flex-col gap-3 pt-2 border-t border-border/50">
-              <div className="flex items-center justify-between gap-4">
-                <label className="text-sm font-bold text-foreground">Seconds per page</label>
-                <select
-                  value={mp4SecondsPerPage}
-                  onChange={(e) => setMp4SecondsPerPage(Number(e.target.value))}
-                  disabled={isGeneratingMp4}
-                  className="text-sm border-2 border-border rounded-lg px-2 py-1 bg-background text-foreground focus:border-primary focus:outline-none"
-                >
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="text-sm font-bold text-foreground">Seconds per page</span>
+                <div className="flex gap-2">
                   {[2, 3, 4, 5].map((s) => (
-                    <option key={s} value={s}>{s}s</option>
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setMp4SecondsPerPage(s)}
+                      disabled={isGeneratingMp4}
+                      className={`w-12 h-9 rounded-lg text-sm font-bold border-2 transition-colors ${
+                        mp4SecondsPerPage === s
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background text-foreground border-border hover:border-primary/50'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {s}s
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
-              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <label className="flex items-center justify-center gap-2.5 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={mp4Crossfade}
