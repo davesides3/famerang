@@ -21,6 +21,7 @@ Change Log
 - fixed problem with FFmpeg WASM (Power mode)
 - revisions to export screen
 - better progress bar on video generation
+- publish alpha at famerang.replit.app
 
 2026-07-27 Monday
 - change stamps to stickers in UI
