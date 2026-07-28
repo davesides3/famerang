@@ -15,6 +15,7 @@ import {
   Share2,
   Images,
   Trash2,
+  Archive,
 } from 'lucide-react';
 import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -70,6 +71,7 @@ export function BookletHub() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false);
   const [editTitle, setEditTitle] = useState('');
 
   const [isExportingBooklet, setIsExportingBooklet] = useState(false);
@@ -127,7 +129,9 @@ export function BookletHub() {
         }
       : isSettingsOpen
         ? () => setIsSettingsOpen(false)
-        : null,
+        : isArchiveOpen
+          ? () => setIsArchiveOpen(false)
+          : null,
   );
 
   if (!booklet || !serverPages) return null;
@@ -419,6 +423,70 @@ export function BookletHub() {
     );
   }
 
+  if (isArchiveOpen) {
+    return (
+      <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <h1 className="text-2xl font-serif font-bold text-foreground">Backup &amp; Restore</h1>
+
+        {backupError && (
+          <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <p className="text-sm font-bold">{backupError}</p>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <PaperCard className="flex items-center gap-4 p-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Download className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground">Backup</p>
+              <p className="text-sm text-muted-foreground">Save a zip file of this booklet — photos, stickers, and all.</p>
+            </div>
+            <PaperButton
+              type="button"
+              onClick={handleExportBooklet}
+              disabled={isExportingBooklet}
+              className="shrink-0"
+              data-testid="toolbar-backup"
+            >
+              {isExportingBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Backup'}
+            </PaperButton>
+          </PaperCard>
+
+          <PaperCard className="flex items-center gap-4 p-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Upload className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-foreground">Restore</p>
+              <p className="text-sm text-muted-foreground">Overwrite this booklet from a previously saved backup zip.</p>
+            </div>
+            <PaperButton
+              type="button"
+              onClick={() => restoreFileInputRef.current?.click()}
+              disabled={isRestoringBooklet}
+              className="shrink-0"
+              data-testid="toolbar-restore"
+            >
+              {isRestoringBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Restore'}
+            </PaperButton>
+          </PaperCard>
+        </div>
+
+        <input
+          type="file"
+          accept=".zip,application/zip"
+          ref={restoreFileInputRef}
+          className="hidden"
+          onChange={handleRestoreBookletFile}
+          data-testid="restore-file-input"
+        />
+      </div>
+    );
+  }
+
   if (isSettingsOpen) {
     return (
       <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -522,49 +590,38 @@ export function BookletHub() {
           </div>
         </div>
 
-        <div className={cn('grid gap-1 mt-2', pages.length > 0 ? 'grid-cols-4' : 'grid-cols-3')}>
-          {pages.length > 0 && (
-            <ToolbarAction
-              icon={<Plus className="w-5 h-5" />}
-              label="Add Page"
-              onClick={handleAddPage}
-              testId="toolbar-add-page"
-            />
-          )}
+        <div className="grid grid-cols-5 gap-1 mt-2">
           <ToolbarAction
-            icon={isExportingBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
-            label={isExportingBooklet ? 'Backing up...' : 'Backup'}
-            onClick={handleExportBooklet}
-            disabled={isExportingBooklet}
-            testId="toolbar-backup"
+            icon={<Plus className="w-5 h-5" />}
+            label="Add Page"
+            onClick={handleAddPage}
+            testId="toolbar-add-page"
           />
           <ToolbarAction
-            icon={isRestoringBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
-            label={isRestoringBooklet ? 'Restoring...' : 'Restore'}
-            onClick={() => restoreFileInputRef.current?.click()}
-            disabled={isRestoringBooklet}
-            testId="toolbar-restore"
+            icon={<Eye className="w-5 h-5" />}
+            label="Preview"
+            onClick={() => setPreviewIndex(0)}
+            disabled={pages.length === 0}
+            testId="toolbar-preview"
+          />
+          <ToolbarAction
+            icon={<Share2 className="w-5 h-5" />}
+            label="Export"
+            onClick={() => setIsExportOpen(true)}
+            disabled={pages.length === 0}
+            testId="open-export"
           />
           <ToolbarAction icon={<Settings className="w-5 h-5" />} label="Settings" onClick={openSettings} testId="toolbar-settings" />
+          <ToolbarAction
+            icon={<Archive className="w-5 h-5" />}
+            label="Archive"
+            onClick={() => setIsArchiveOpen(true)}
+            testId="toolbar-archive"
+          />
         </div>
-        <input
-          type="file"
-          accept=".zip,application/zip"
-          ref={restoreFileInputRef}
-          className="hidden"
-          onChange={handleRestoreBookletFile}
-          data-testid="restore-file-input"
-        />
       </div>
 
       <div className="flex flex-col gap-4 pt-4">
-        {backupError && (
-          <div className="bg-destructive/10 text-destructive border-2 border-destructive/20 p-4 rounded-xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <p className="text-sm font-bold">{backupError}</p>
-          </div>
-        )}
-
         {pages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-border rounded-xl bg-card">
             <img src={famerangLogo} alt="" className="w-24 h-24 object-contain mb-4 opacity-70" />
@@ -651,35 +708,7 @@ export function BookletHub() {
           </>
         )}
 
-        {pages.length > 0 && <div className="h-24" /> /* spacer so content clears the fixed bottom bar */}
       </div>
-
-      {pages.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-md border-t-2 border-border flex justify-center z-20">
-          <div className="flex gap-3 w-full max-w-sm">
-            <PaperButton
-              type="button"
-              variant="outline"
-              className="flex-1 shadow-lg"
-              onClick={() => setPreviewIndex(0)}
-              data-testid="open-preview"
-            >
-              <Eye className="w-5 h-5 mr-2" />
-              Preview
-            </PaperButton>
-            <PaperButton
-              type="button"
-              variant="primary"
-              className="flex-1 shadow-lg"
-              onClick={() => setIsExportOpen(true)}
-              data-testid="open-export"
-            >
-              <Share2 className="w-5 h-5 mr-2" />
-              Export
-            </PaperButton>
-          </div>
-        </div>
-      )}
 
       {previewIndex !== null && (
         <PagePreview booklet={booklet} pages={pages} initialIndex={previewIndex} onClose={() => setPreviewIndex(null)} />
