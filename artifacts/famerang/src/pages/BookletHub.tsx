@@ -95,6 +95,10 @@ export function BookletHub() {
   const [mp4Progress, setMp4Progress] = useState(0);
   const [mp4DownloadProgress, setMp4DownloadProgress] = useState<{ received: number; total: number } | null>(null);
   const [mp4Error, setMp4Error] = useState<string | null>(null);
+  // Encode-phase time estimate: set once encoding starts (pct ≥ 67) and
+  // updated on each FFmpeg progress event.
+  const mp4EncodeStartRef = useRef<number | null>(null);
+  const [mp4SecondsRemaining, setMp4SecondsRemaining] = useState<number | null>(null);
   // Snapshot of isEncoderCached() taken at the start of each export run.
   // When true the FFmpeg core was already in memory, so we suppress the
   // byte-counter and show "Loading encoder… (cached)" instead.
@@ -314,6 +318,8 @@ export function BookletHub() {
       setMp4Error(null);
       setMp4Progress(0);
       setMp4DownloadProgress(null);
+      setMp4SecondsRemaining(null);
+      mp4EncodeStartRef.current = null;
       setMp4EncoderWasCached(isEncoderCached());
       setIsGeneratingMp4(true);
       // Yield so the loading state paints before the heavy work starts.
@@ -321,7 +327,30 @@ export function BookletHub() {
       const blob = await generateMp4(booklet, pages, {
         secondsPerPage: mp4SecondsPerPage,
         crossfade: mp4Crossfade,
-        onProgress: setMp4Progress,
+        onProgress: (pct: number) => {
+          setMp4Progress(pct);
+          // Time-remaining estimate: only active during the encode phase (67–99 %).
+          if (pct >= 67) {
+            const now = Date.now();
+            if (mp4EncodeStartRef.current === null) {
+              // Record the moment encoding begins.
+              mp4EncodeStartRef.current = now;
+            } else {
+              const elapsedSec = (now - mp4EncodeStartRef.current) / 1000;
+              // Wait at least 3 s before showing an estimate so the first few
+              // noisy FFmpeg ticks don't produce a wildly inaccurate number.
+              if (elapsedSec >= 3) {
+                // encodeProgress is the fraction of the encode phase completed (0→1).
+                const encodeProgress = (pct - 67) / 32;
+                if (encodeProgress > 0) {
+                  const totalEstimatedSec = elapsedSec / encodeProgress;
+                  const remaining = Math.max(0, Math.round(totalEstimatedSec - elapsedSec));
+                  setMp4SecondsRemaining(remaining);
+                }
+              }
+            }
+          }
+        },
         onDownloadProgress: (received, total) =>
           setMp4DownloadProgress({ received, total }),
       });
@@ -600,7 +629,10 @@ export function BookletHub() {
                 ) : mp4Progress < 67 ? (
                   <>Preparing frames… {mp4Progress}%</>
                 ) : (
-                  <>Encoding video… {mp4Progress}%</>
+                  <>
+                    Encoding video… {mp4Progress}%
+                    {mp4SecondsRemaining !== null && ` — about ${mp4SecondsRemaining} s left`}
+                  </>
                 )}
               </p>
             </div>
