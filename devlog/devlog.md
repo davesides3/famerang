@@ -18,7 +18,10 @@ Change Log
 
 2026-07-29 Wednesday
 - test on iPhone
-- 
+- tighten up space on Export screen
+- add Cancel button to Video Generate & Send
+- update replit.md for alpha release email
+- added insects to 
 
 2026-07-28 Tuesday
 - subagent still says it's working, but UI so ignoring
