@@ -490,7 +490,7 @@ export function BookletHub() {
 
   if (isExportOpen) {
     return (
-      <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col gap-3 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
         <h1 className="text-2xl font-serif font-bold text-foreground line-clamp-1">Export Booklet</h1>
 
         {(pdfError || photosError) && (
@@ -500,8 +500,8 @@ export function BookletHub() {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
-          <PaperCard className="flex flex-col gap-3 p-4">
+        <div className="flex flex-col gap-2">
+          <PaperCard className="flex flex-col gap-2 p-3">
             <PaperButton
               type="button"
               onClick={handleDraftPdfClick}
@@ -528,7 +528,7 @@ export function BookletHub() {
             </div>
           )}
 
-          <PaperCard className="flex flex-col gap-3 p-4">
+          <PaperCard className="flex flex-col gap-2 p-3">
             <PaperButton
               type="button"
               onClick={handlePrintPdfClick}
@@ -555,7 +555,7 @@ export function BookletHub() {
             </div>
           )}
 
-          <PaperCard className="flex flex-col gap-3 p-4">
+          <PaperCard className="flex flex-col gap-2 p-3">
             <PaperButton
               type="button"
               onClick={handleSendPhotosClick}
@@ -584,24 +584,22 @@ export function BookletHub() {
           )}
 
           {/* ── MP4 Video Export ─────────────────────────────────────────── */}
-          <PaperCard className="flex flex-col gap-3 p-4">
-            <div className="flex flex-col gap-3">
-              <PaperButton
-                type="button"
-                onClick={handleMp4Export}
-                disabled={isGeneratingMp4}
-                className="w-full flex items-center justify-center gap-2"
-                data-testid="generate-mp4"
-              >
-                {isGeneratingMp4
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-                  : <><Video className="w-4 h-4" /> Generate &amp; Send Video</>}
-              </PaperButton>
-            </div>
+          <PaperCard className="flex flex-col gap-2 p-3">
+            <PaperButton
+              type="button"
+              onClick={handleMp4Export}
+              disabled={isGeneratingMp4}
+              className="w-full flex items-center justify-center gap-2"
+              data-testid="generate-mp4"
+            >
+              {isGeneratingMp4
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
+                : <><Video className="w-4 h-4" /> Generate &amp; Send Video</>}
+            </PaperButton>
 
             {/* Inline settings */}
-            <div className="flex flex-col gap-3 pt-2 border-t border-border/50">
-              <div className="flex flex-col items-center gap-1.5">
+            <div className="flex flex-col gap-2 pt-1.5 border-t border-border/50">
+              <div className="flex flex-col items-center gap-1">
                 <span className="text-sm font-bold text-foreground">Seconds per page</span>
                 <div className="flex gap-2">
                   {[2, 3, 4, 5].map((s) => (
@@ -610,7 +608,7 @@ export function BookletHub() {
                       type="button"
                       onClick={() => setMp4SecondsPerPage(s)}
                       disabled={isGeneratingMp4}
-                      className={`w-12 h-9 rounded-lg text-sm font-bold border-2 transition-colors ${
+                      className={`w-12 h-8 rounded-lg text-sm font-bold border-2 transition-colors ${
                         mp4SecondsPerPage === s
                           ? 'bg-primary text-primary-foreground border-primary'
                           : 'bg-background text-foreground border-border hover:border-primary/50'
