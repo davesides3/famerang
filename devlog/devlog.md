@@ -16,6 +16,9 @@ Ideas
 
 Change Log
 
+2026-07-30 Thursday
+- connected app to app.famerang.com
+
 2026-07-29 Wednesday
 - test on iPhone
 - tighten up space on Export screen
