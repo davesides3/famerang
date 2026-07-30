@@ -16,6 +16,10 @@ Ideas
 
 Change Log
 
+2026-07-29 Wednesday
+- test on iPhone
+- 
+
 2026-07-28 Tuesday
 - subagent still says it's working, but UI so ignoring
 - fixed problem with FFmpeg WASM (Power mode)
