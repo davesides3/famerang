@@ -83,14 +83,29 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Everything the app needs is bundled at build time; once cached,
-        // Famerang works fully offline with no network fallback needed.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Precache all app assets EXCEPT html.  index.html is intentionally
+        // excluded so the precache handler does not intercept navigations with
+        // CacheFirst — that is the root cause of iOS PWA not picking up updates.
+        // JS/CSS chunks are content-hashed so CacheFirst is safe for them.
+        globPatterns: ['**/*.{js,css,svg,png,ico,woff2}'],
         navigateFallback: `${basePath}index.html`,
-        // Cache the FFmpeg WASM core from unpkg so it survives browser cache
-        // eviction and remains available offline after the first export.
         runtimeCaching: [
           {
+            // Navigation requests (opening the PWA, refreshing): always try the
+            // network first so iOS always loads the latest app shell.  Falls back
+            // to the cached copy after 3 s so the app still launches offline.
+            urlPattern: ({ request }: { request: Request }) =>
+              request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'navigation-cache',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            // Cache the FFmpeg WASM core from unpkg so it survives browser cache
+            // eviction and remains available offline after the first export.
             urlPattern: /^https:\/\/unpkg\.com\/@ffmpeg\//,
             handler: 'CacheFirst',
             options: {
@@ -99,9 +114,7 @@ export default defineConfig({
                 maxEntries: 10,
                 maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
               },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
