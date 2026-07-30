@@ -21,7 +21,7 @@ Change Log
 - tighten up space on Export screen
 - add Cancel button to Video Generate & Send
 - update replit.md for alpha release email
-- added insects to 
+- added insects to seed-packs
 
 2026-07-28 Tuesday
 - subagent still says it's working, but UI so ignoring
