@@ -27,6 +27,16 @@ export interface VideoExportOptions {
    *  and MEMFS frame-writing (phase='writing').
    *  `current` is 1-based; `total` is the total page count. */
   onPageProgress?: (current: number, total: number, phase: 'rendering' | 'writing') => void;
+  /** When aborted, the export stops at the next checkpoint and rejects with
+   *  a DOMException whose name is 'AbortError'. */
+  signal?: AbortSignal;
+}
+
+/** Throws a DOMException('AbortError') if the signal has already fired. */
+function checkAbort(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw new DOMException('Video export cancelled.', 'AbortError');
+  }
 }
 
 // Longest edge of the output video. 1080 gives a good quality/encode-time
@@ -107,7 +117,8 @@ export async function generateMp4(
 
   if (pages.length === 0) throw new Error('No pages to export.');
 
-  const { onProgress, onDownloadProgress, onPageProgress } = options;
+  const { onProgress, onDownloadProgress, onPageProgress, signal } = options;
+  checkAbort(signal);
   let pct = 0;
   const report = (p: number) => {
     pct = Math.max(pct, Math.min(99, Math.round(p)));
@@ -277,10 +288,12 @@ export async function generateMp4(
   report(10);
 
   // ── 2. Render each page to a canvas ──────────────────────────────────────
+  checkAbort(signal);
   const { w, h } = getVideoSize(booklet);
   dbg(`rendering ${pages.length} pages at ${w}×${h}`);
   const canvases: HTMLCanvasElement[] = [];
   for (let i = 0; i < pages.length; i++) {
+    checkAbort(signal);
     dbg(`  render page ${i + 1}/${pages.length} — start`);
     try {
       canvases.push(await renderPageToCanvas(pages[i], booklet, w, h));
@@ -318,6 +331,7 @@ export async function generateMp4(
   dbg(`writing ${totalFrames} frame(s) to MEMFS — start`);
 
   for (let i = 0; i < canvases.length; i++) {
+    checkAbort(signal);
     const hasNext = i < canvases.length - 1;
 
     // Hold the still for (secondsPerPage − fade-out) so the total per-page
@@ -365,8 +379,13 @@ export async function generateMp4(
   dbg('concat.txt written');
 
   // ── 4. H.264 encode ───────────────────────────────────────────────────────
+  checkAbort(signal);
   // Activate the log-based time parser (registered above on the log listener).
   encodePhaseActive = true;
+
+  // If the caller aborts mid-encode, terminate FFmpeg immediately.
+  const onAbortDuringEncode = () => { try { ff.terminate(); } catch (_) {} };
+  signal?.addEventListener('abort', onAbortDuringEncode, { once: true });
 
   dbg('ff.exec() (H.264 encode) — start');
   try {
@@ -381,10 +400,17 @@ export async function generateMp4(
       'output.mp4',
     ]);
   } catch (err) {
+    signal?.removeEventListener('abort', onAbortDuringEncode);
+    // If the signal fired, ff.terminate() caused exec to throw — re-throw as
+    // AbortError so the caller can distinguish cancellation from a real failure.
+    if (signal?.aborted) {
+      throw new DOMException('Video export cancelled.', 'AbortError');
+    }
     // eslint-disable-next-line no-console
     console.error('[VideoExport] ff.exec() failed', err);
     throw err;
   }
+  signal?.removeEventListener('abort', onAbortDuringEncode);
   dbg('ff.exec() — done');
 
   dbg('ff.readFile(output.mp4) — start');

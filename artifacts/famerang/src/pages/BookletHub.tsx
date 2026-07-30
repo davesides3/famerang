@@ -18,6 +18,7 @@ import {
   Archive,
   Video,
   Printer,
+  XCircle,
 } from 'lucide-react';
 import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPages, deletePage } from '@/lib/hooks';
 import { useHeaderClose } from '@/components/layout/AppLayout';
@@ -115,6 +116,8 @@ export function BookletHub() {
   const mp4LoadStartRef = useRef<number | null>(null);
   // Per-page progress reported by the export pipeline.
   const [mp4PageProgress, setMp4PageProgress] = useState<{ current: number; total: number; phase: 'rendering' | 'writing' } | null>(null);
+  // AbortController for the in-flight export; non-null only while generating.
+  const mp4AbortRef = useRef<AbortController | null>(null);
   const [mp4SecondsPerPage, setMp4SecondsPerPage] = useState(3);
   const [mp4Crossfade, setMp4Crossfade] = useState(false);
 
@@ -342,8 +345,14 @@ export function BookletHub() {
     handleSendPhotos();
   };
 
+  const handleCancelMp4 = () => {
+    mp4AbortRef.current?.abort();
+  };
+
   const handleMp4Export = async () => {
     if (!booklet) return;
+    const abort = new AbortController();
+    mp4AbortRef.current = abort;
     try {
       setMp4Error(null);
       setMp4Progress(0);
@@ -389,6 +398,7 @@ export function BookletHub() {
           setMp4DownloadProgress({ received, total }),
         onPageProgress: (current, total, phase) =>
           setMp4PageProgress({ current, total, phase }),
+        signal: abort.signal,
       });
       const safeTitle = booklet.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'booklet';
       const mp4Filename = `${safeTitle}.mp4`;
@@ -406,10 +416,16 @@ export function BookletHub() {
         console.log('[VideoExport] shareOrDownloadFile — done');
       }
     } catch (err: any) {
-      // eslint-disable-next-line no-console
-      console.error('[VideoExport] handleMp4Export caught error', err);
-      setMp4Error(err.message || 'Could not generate the video. Please try again.');
+      if (err?.name === 'AbortError') {
+        // User cancelled — reset quietly, no error banner.
+        setMp4Progress(0);
+      } else {
+        // eslint-disable-next-line no-console
+        console.error('[VideoExport] handleMp4Export caught error', err);
+        setMp4Error(err.message || 'Could not generate the video. Please try again.');
+      }
     } finally {
+      mp4AbortRef.current = null;
       setIsGeneratingMp4(false);
     }
   };
@@ -585,17 +601,26 @@ export function BookletHub() {
 
           {/* ── MP4 Video Export ─────────────────────────────────────────── */}
           <PaperCard className="flex flex-col gap-2 p-3">
-            <PaperButton
-              type="button"
-              onClick={handleMp4Export}
-              disabled={isGeneratingMp4}
-              className="w-full flex items-center justify-center gap-2"
-              data-testid="generate-mp4"
-            >
-              {isGeneratingMp4
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
-                : <><Video className="w-4 h-4" /> Generate &amp; Send Video</>}
-            </PaperButton>
+            {isGeneratingMp4 ? (
+              <PaperButton
+                type="button"
+                variant="outline"
+                onClick={handleCancelMp4}
+                className="w-full flex items-center justify-center gap-2"
+                data-testid="cancel-mp4"
+              >
+                <XCircle className="w-4 h-4" /> Cancel
+              </PaperButton>
+            ) : (
+              <PaperButton
+                type="button"
+                onClick={handleMp4Export}
+                className="w-full flex items-center justify-center gap-2"
+                data-testid="generate-mp4"
+              >
+                <Video className="w-4 h-4" /> Generate &amp; Send Video
+              </PaperButton>
+            )}
 
             {/* Inline settings */}
             <div className="flex flex-col gap-2 pt-1.5 border-t border-border/50">
