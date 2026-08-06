@@ -16,6 +16,12 @@ Ideas
 
 Change Log
 
+2026-08-06 Thursday
+- add info screen with GitHub link
+- add add to home screen option
+- some UI tweaks
+- add README and License for GitHub
+
 2026-08-05 Wednesday
 - create Pinterest account
 - Gemini work to create next Replit prompts
