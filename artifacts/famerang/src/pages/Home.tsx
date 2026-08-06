@@ -8,6 +8,7 @@ import { getTrimSize } from '@/lib/types';
 import { format } from 'date-fns';
 import famerangLogo from '@/assets/famerang-logo.png';
 import { useHeaderNavHidden } from '@/components/layout/AppLayout';
+import { InstallBanner } from '@/components/InstallBanner';
 
 export function Home() {
   const booklets = useBooklets();
@@ -34,6 +35,8 @@ export function Home() {
 
   return (
     <div className="flex flex-col gap-6 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <InstallBanner />
+
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-serif font-bold text-foreground">My Booklets</h1>
         {!isCreating && (
