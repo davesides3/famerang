@@ -16,6 +16,10 @@ Ideas
 
 Change Log
 
+2026-08-05 Wednesday
+- create Pinterest account
+- Gemini work to create next Replit prompts
+
 2026-07-30 Thursday
 - connected app to app.famerang.com
 
