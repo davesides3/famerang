@@ -11,7 +11,7 @@ import type { Sticker, StickerPack } from './types';
 // Any device whose stored seed version is lower than this will re-seed on
 // the next app launch.  User-created packs are never touched.
 //
-const SEED_VERSION = 4;
+const SEED_VERSION = 5;
 const SEED_VERSION_KEY = 'famerang-seed-v';
 
 // ─── Pack manifest ────────────────────────────────────────────────────────────
@@ -58,6 +58,14 @@ const DEFAULT_PACKS: Array<{ id: string; asset: string }> = [
   {
     id: '3fd25cac-f078-418d-8367-33875237f74e',
     asset: 'seed-packs/insects.zip',
+  },
+  {
+    id: '87d37eb6-2d43-4e91-8ad4-d68a965962ea',
+    asset: 'seed-packs/sloths.zip',
+  },
+  {
+    id: '912a1184-eb3f-4075-ae01-536595683d0b',
+    asset: 'seed-packs/sloths-cartoon.zip',
   },
 ];
 

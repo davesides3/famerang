@@ -17,6 +17,8 @@ Famerang ships with a set of built-in sticker packs that are automatically seede
 | Dinosaurs | `baf7d89a-4e90-4ca7-888c-68fc3a4caa3f` | 22 | Famerang |
 | Dogs | `c3de15b6-4aab-48fe-8dc4-68c075c08f61` | 39 | Famerang |
 | Insects | `3fd25cac-f078-418d-8367-33875237f74e` | — | Famerang |
+| Sloths | `87d37eb6-2d43-4e91-8ad4-d68a965962ea` | 12 | Famerang |
+| Sloths - Cartoon | `912a1184-eb3f-4075-ae01-536595683d0b` | 16 | Famerang |
 
 All packs are credited to Famerang (`https://www.famerang.com`) with `creditsLocked: true`.
 
@@ -37,6 +39,10 @@ All packs are credited to Famerang (`https://www.famerang.com`) with `creditsLoc
 **Dinosaurs** — ankylosaurus-happy-left, ankylosaurus-happy-right, brachiosaurus-happy-left, brachiosaurus-happy-right, parasaurolophus-happy-left, parasaurolophus-happy-right, plesiosaur-happy-left, plesiosaur-happy-right, pteranodon-happy-left, pteranodon-happy-right, spinosaurus-happy-left, spinosaurus-happy-right, stegosaurus-happy-left, stegosaurus-happy-right, triceratops-happy-left, triceratops-happy-right, tyrannosaurus-happy-left, tyrannosaurus-happy-right, velociraptor-happy-left, velociraptor-happy-right *(+ 2 sheet-preview PNGs included in zip)*
 
 **Dogs** — beagle-left, beagle-right, border-collie-left, border-collie-right, chihuahua-left, chihuahua-right, corgi-left, corgi-right, dachshund-left, dachshund-right, french-bulldog-left, french-bulldog-right, golden-retriever-left, golden-retriever-right, great-dane-right, maltese-left, maltese-right, mastiff-left, mastiff-right, min-pin-left, min-pin-right, newfoundland-left, newfoundland-right, pomeranian-left, pomeranian-right, pug-left, pug-right, rottweiler-left, rottweiler-right, saint-bernard-left, saint-bernard-right, siberian-husky-left, siberian-husky-right, springer-spaniel-left, springer-spaniel-right, wolfhound-left, wolfhound-right, yorkie-left, yorkie-right
+
+**Sloths** — sloth-hanging-facing-left, sloth-hanging-facing-right, sloth-hanging-left, sloth-hanging-right, sloth-hanging-upright-left, sloth-hanging-upright-right, sloth-looking-left, sloth-looking-right, sloth-sleeping-left, sloth-sleeping-right, sloth-walking-left, sloth-walking-right
+
+**Sloths - Cartoon** — sloth-eyes-closed-laying-left, sloth-eyes-closed-laying-right, sloth-eyes-closed-upright-left, sloth-eyes-closed-upright-right, sloth-hanging-closed-smiling-left, sloth-hanging-closed-smiling-right, sloth-hanging-one-arm-left, sloth-hanging-one-arm-right, sloth-hanging-open-smiling-left, sloth-hanging-open-smiling-right, sloth-lounge-left, sloth-lounge-right, sloth-upside-down-smiling-left, sloth-upside-down-smiling-right, sloth-walking-left, sloth-walking-right
 
 ---
 
@@ -93,7 +99,7 @@ On every app start, `src/lib/seedPacks.ts` compares a `SEED_VERSION` constant ag
 
 After seeding, the new version number is written to `localStorage` so the routine is skipped on subsequent launches.
 
-Current `SEED_VERSION`: **3**
+Current `SEED_VERSION`: **5**
 
 ---
 
