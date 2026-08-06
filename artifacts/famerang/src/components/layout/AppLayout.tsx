@@ -118,15 +118,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
           <nav className="flex items-center gap-1">
             {rightContent}
-            <ThemeToggle />
-            <Link
-              href="/info"
-              className={cn('flex items-center p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground', location === '/info' && 'bg-muted text-foreground')}
-              aria-label="About Famerang"
-              data-testid="header-info"
-            >
-              <Info className="w-5 h-5" />
-            </Link>
+            {(location === '/' || location === '/stickers') && (
+              <>
+                <ThemeToggle />
+                <Link
+                  href="/info"
+                  className="flex items-center p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                  aria-label="About Famerang"
+                  data-testid="header-info"
+                >
+                  <Info className="w-5 h-5" />
+                </Link>
+              </>
+            )}
           </nav>
         </header>
         <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
