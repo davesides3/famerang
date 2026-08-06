@@ -4,6 +4,7 @@
 - some UI tweaks
 - add README and License for GitHub
 - added sloths and sloths-cartoon sticker packs
+- GitHub changed from private to public
 
 2026-08-05 Wednesday
 - create Pinterest account
