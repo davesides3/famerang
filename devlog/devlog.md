@@ -3,6 +3,7 @@
 - add add to home screen option
 - some UI tweaks
 - add README and License for GitHub
+- added sloths and sloths-cartoon sticker packs
 
 2026-08-05 Wednesday
 - create Pinterest account
