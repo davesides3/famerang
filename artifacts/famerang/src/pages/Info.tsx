@@ -8,8 +8,8 @@ export function Info() {
   useHeaderClose(() => window.history.back());
 
   return (
-    <div className="flex flex-col gap-4 pb-4">
-      {/* Logo + tagline */}
+    <div className="flex flex-col gap-5 pb-4">
+      {/* Logo + all copy in one consistent block */}
       <div className="flex flex-col items-center text-center gap-2 pt-1">
         <img src={famerangLogo} alt="Famerang" className="h-16 w-16 object-contain" />
         <h1 className="font-serif text-3xl font-bold text-foreground">Famerang</h1>
@@ -17,25 +17,11 @@ export function Info() {
           Turn Apple &amp; Google photos&nbsp;+&nbsp;stamps into printable booklets
           kids hold &amp; grandparents cherish.
         </p>
+        <p className="text-lg font-medium text-foreground leading-snug max-w-xs">
+          Photos stay on-device. No login, no app store. Works offline.
+          Free and open source.
+        </p>
       </div>
-
-      {/* Pillars */}
-      <div className="flex flex-col gap-2">
-        {[
-          'Photos stay on-device — nothing leaves your phone.',
-          'No login. No app store. Works offline once installed.',
-          'No screen time — it ends with something you can hold.',
-        ].map((text) => (
-          <div key={text} className="bg-card border border-border rounded-xl px-4 py-3">
-            <span className="text-sm text-muted-foreground leading-snug">{text}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Free */}
-      <p className="text-center text-sm text-muted-foreground font-medium">
-        Famerang is&nbsp;<span className="text-foreground font-bold">free</span>&nbsp;and open source.
-      </p>
 
       {/* GitHub link */}
       <a

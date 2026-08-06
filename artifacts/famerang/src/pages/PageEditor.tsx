@@ -88,9 +88,9 @@ export function PageEditor() {
         disabled={!prevPage}
         aria-label="Previous page"
         data-testid="header-prev-page"
-        className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+        className="flex items-center justify-center w-9 h-9 rounded-xl text-foreground hover:bg-muted transition-colors disabled:opacity-25 disabled:hover:bg-transparent disabled:cursor-not-allowed"
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
       </button>
       <button
         type="button"
@@ -98,9 +98,9 @@ export function PageEditor() {
         disabled={!nextPage}
         aria-label="Next page"
         data-testid="header-next-page"
-        className="flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+        className="flex items-center justify-center w-9 h-9 rounded-xl text-foreground hover:bg-muted transition-colors disabled:opacity-25 disabled:hover:bg-transparent disabled:cursor-not-allowed"
       >
-        <ChevronRight className="w-5 h-5" />
+        <ChevronRight className="w-6 h-6" strokeWidth={2.5} />
       </button>
     </div>,
   );
