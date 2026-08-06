@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BookOpen, Sticker, X } from 'lucide-react';
+import { BookOpen, Info, Sticker, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import famerangLogo from '@/assets/famerang-logo.png';
 import { LandscapeGuard } from '@/components/layout/LandscapeGuard';
@@ -119,6 +119,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-1">
             {rightContent}
             <ThemeToggle />
+            <Link
+              href="/info"
+              className={cn(navButtonClasses, location === '/info' && 'bg-muted text-foreground')}
+              aria-label="About Famerang"
+              data-testid="header-info"
+            >
+              <Info className="w-5 h-5" />
+            </Link>
           </nav>
         </header>
         <main className="flex-1 w-full max-w-lg mx-auto px-4 pt-6 flex flex-col gap-6">
