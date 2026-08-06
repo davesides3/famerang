@@ -3,7 +3,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
 const navButtonClasses =
-  'flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-sm hover:bg-muted transition-colors text-muted-foreground hover:text-foreground';
+  'flex items-center gap-1.5 p-2 rounded-xl font-bold text-sm hover:bg-muted transition-colors text-muted-foreground hover:text-foreground';
 
 export function ThemeToggle() {
   const { isDark, toggle } = useTheme();

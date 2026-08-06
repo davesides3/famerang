@@ -121,7 +121,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
             <Link
               href="/info"
-              className={cn(navButtonClasses, location === '/info' && 'bg-muted text-foreground')}
+              className={cn('flex items-center p-2 rounded-xl hover:bg-muted transition-colors text-muted-foreground hover:text-foreground', location === '/info' && 'bg-muted text-foreground')}
               aria-label="About Famerang"
               data-testid="header-info"
             >

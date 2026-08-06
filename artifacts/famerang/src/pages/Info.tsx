@@ -1,13 +1,19 @@
-import { Github, BookHeart, Shield, Cpu } from 'lucide-react';
+import { useLocation } from 'wouter';
+import { Github } from 'lucide-react';
+import { useHeaderClose } from '@/components/layout/AppLayout';
+import famerangLogo from '@/assets/famerang-logo.png';
 
 const GITHUB_URL = 'https://github.com/davesides3/famerang';
 
 export function Info() {
+  const [, navigate] = useLocation();
+  useHeaderClose(() => navigate('~-1'));
+
   return (
-    <div className="flex flex-col gap-6 pb-4">
+    <div className="flex flex-col gap-4 pb-4">
       {/* Logo + tagline */}
-      <div className="flex flex-col items-center text-center gap-3 pt-2">
-        <BookHeart className="w-14 h-14 text-primary" strokeWidth={1.5} />
+      <div className="flex flex-col items-center text-center gap-2 pt-1">
+        <img src={famerangLogo} alt="Famerang" className="h-16 w-16 object-contain" />
         <h1 className="font-serif text-3xl font-bold text-foreground">Famerang</h1>
         <p className="text-lg font-medium text-foreground leading-snug max-w-xs">
           Turn Apple &amp; Google photos&nbsp;+&nbsp;stamps into printable booklets
@@ -18,12 +24,11 @@ export function Info() {
       {/* Pillars */}
       <div className="flex flex-col gap-2">
         {[
-          { icon: <Shield className="w-5 h-5 shrink-0 text-primary" />, text: 'Photos stay on-device — nothing leaves your phone.' },
-          { icon: <Cpu className="w-5 h-5 shrink-0 text-primary" />, text: 'No login. No app store. Works offline once installed.' },
-          { icon: <BookHeart className="w-5 h-5 shrink-0 text-primary" />, text: 'No screen time — it ends with something you can hold.' },
-        ].map(({ icon, text }) => (
-          <div key={text} className="flex items-start gap-3 bg-card border border-border rounded-xl px-4 py-3">
-            {icon}
+          'Photos stay on-device — nothing leaves your phone.',
+          'No login. No app store. Works offline once installed.',
+          'No screen time — it ends with something you can hold.',
+        ].map((text) => (
+          <div key={text} className="bg-card border border-border rounded-xl px-4 py-3">
             <span className="text-sm text-muted-foreground leading-snug">{text}</span>
           </div>
         ))}
@@ -44,19 +49,6 @@ export function Info() {
         <Github className="w-5 h-5" />
         View source on GitHub
       </a>
-
-      {/* License */}
-      <p className="text-center text-xs text-muted-foreground">
-        Released under the{' '}
-        <a
-          href={`${GITHUB_URL}/blob/main/LICENSE`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline underline-offset-2 hover:text-foreground transition-colors"
-        >
-          MIT License
-        </a>
-      </p>
     </div>
   );
 }
