@@ -1,4 +1,3 @@
-import { useLocation } from 'wouter';
 import { Github } from 'lucide-react';
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import famerangLogo from '@/assets/famerang-logo.png';
@@ -6,8 +5,7 @@ import famerangLogo from '@/assets/famerang-logo.png';
 const GITHUB_URL = 'https://github.com/davesides3/famerang';
 
 export function Info() {
-  const [, navigate] = useLocation();
-  useHeaderClose(() => navigate('~-1'));
+  useHeaderClose(() => window.history.back());
 
   return (
     <div className="flex flex-col gap-4 pb-4">
