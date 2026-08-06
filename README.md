@@ -65,7 +65,7 @@ pnpm run build
 
 ## Stamp packs
 
-The app ships with nine default stamp packs sourced from `artifacts/famerang/public/seed-packs/`. Each pack is a ZIP containing a `manifest.json` and individual PNG stamps. See [`docs/default-stamp-packs.md`](artifacts/famerang/docs/default-stamp-packs.md) for how to add or update packs.
+The app ships with nine default stamp packs sourced from `artifacts/famerang/public/seed-packs/`. Each pack is a ZIP containing a `manifest.json` and individual PNG stamps. See [`docs/default-sticker-packs.md`](artifacts/famerang/docs/default-sticker-packs.md) for how to add or update packs.
 
 ## Contributing
 

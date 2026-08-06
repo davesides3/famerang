@@ -16,6 +16,7 @@ Famerang ships with a set of built-in sticker packs that are automatically seede
 | Construction Vehicles | `b4d38491-d500-4348-afc0-7f2c7c061280` | 16 | Famerang |
 | Dinosaurs | `baf7d89a-4e90-4ca7-888c-68fc3a4caa3f` | 22 | Famerang |
 | Dogs | `c3de15b6-4aab-48fe-8dc4-68c075c08f61` | 39 | Famerang |
+| Insects | `3fd25cac-f078-418d-8367-33875237f74e` | — | Famerang |
 
 All packs are credited to Famerang (`https://www.famerang.com`) with `creditsLocked: true`.
 
