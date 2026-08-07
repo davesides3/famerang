@@ -769,21 +769,6 @@ export function BookletHub() {
             </PaperButton>
           </PaperCard>
 
-          {backupReadyBlob && (
-            <PaperButton
-              type="button"
-              className="w-full flex items-center justify-center gap-2"
-              onClick={async () => {
-                const { blob, filename } = backupReadyBlob;
-                setBackupReadyBlob(null);
-                await shareOrDownloadFile(blob, filename, 'application/zip');
-              }}
-            >
-              <Share2 className="w-4 h-4" />
-              Share Backup
-            </PaperButton>
-          )}
-
           <PaperCard className="flex items-center gap-4 p-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <Upload className="w-6 h-6 text-primary" />
