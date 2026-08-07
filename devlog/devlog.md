@@ -1,3 +1,7 @@
+2026-08-07 Friday
+- working on Pinterest assets
+- tweak backup for more useful file name
+
 2026-08-06 Thursday
 - add info screen with GitHub link
 - add add to home screen option
