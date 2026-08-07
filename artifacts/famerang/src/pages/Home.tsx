@@ -86,18 +86,9 @@ export function Home() {
           {booklets?.map((booklet) => (
             <Link key={booklet.id} href={`/booklet/${booklet.id}`} className="block">
               <PaperCard className="group hover:-translate-y-1 hover:shadow-[0_8px_0_0_rgba(0,0,0,0.05)] transition-all cursor-pointer relative overflow-hidden">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1 pr-8">
-                    {booklet.title}
-                  </h3>
-                  <button
-                    onClick={(e) => handleDelete(e, booklet.id)}
-                    className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
-                    aria-label="Delete booklet"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
+                <h3 className="text-xl font-bold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-2">
+                  {booklet.title}
+                </h3>
                 
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1.5">
@@ -108,6 +99,13 @@ export function Home() {
                     <Layers className="w-4 h-4" />
                     {getTrimSize(booklet.canvasSize).label}
                   </div>
+                  <button
+                    onClick={(e) => handleDelete(e, booklet.id)}
+                    className="ml-auto p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
+                    aria-label="Delete booklet"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
 
                 {booklet.updatedAt > (booklet.lastBackedUpAt ?? 0) && (

@@ -24,7 +24,7 @@ import { useBooklet, usePagesWithStickers, createPage, updateBooklet, reorderPag
 import { useHeaderClose } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
 import { exportBookletZip, restoreBookletZip } from '@/lib/backup';
-import { shareOrDownloadFile, shareOrDownloadFiles, isTouchDevice } from '@/lib/share';
+import { shareOrDownloadFile, shareOrDownloadFiles, isTouchDevice, downloadBlob } from '@/lib/share';
 import {
   generateDraftPdf,  isLargeDraftPdf,  estimateDraftPdfBytes,
   generatePrintPdf,  isLargePrintPdf,  estimatePrintPdfBytes,
@@ -84,10 +84,6 @@ export function BookletHub() {
   const [isExportingBooklet, setIsExportingBooklet] = useState(false);
   const [isRestoringBooklet, setIsRestoringBooklet] = useState(false);
   const [backupError, setBackupError] = useState<string | null>(null);
-  // On mobile the Web Share API requires a fresh user gesture — the async
-  // zip build discards the original tap's gesture context. After generation
-  // we park the blob here and show a "Tap to Share" button instead.
-  const [backupReadyBlob, setBackupReadyBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -249,21 +245,12 @@ export function BookletHub() {
     if (!id) return;
     try {
       setBackupError(null);
-      setBackupReadyBlob(null);
       setIsExportingBooklet(true);
       const blob = await exportBookletZip(id);
       const safeTitle = booklet.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       const date = new Date().toISOString().split('T')[0];
-      const filename = `${safeTitle}-backup-${date}.zip`;
-      if (isTouchDevice()) {
-        // Park the blob — the user-gesture context has been consumed by the
-        // async zip build, so navigator.share() must be triggered by a new tap.
-        setBackupReadyBlob({ blob, filename });
-        toast({ title: 'Backup ready', description: 'Tap "Share Backup" to save or send the file.' });
-      } else {
-        await shareOrDownloadFile(blob, filename, 'application/zip');
-        toast({ title: 'Backup complete', description: `"${booklet.title}" was saved to a zip file.` });
-      }
+      downloadBlob(blob, `${safeTitle}-backup-${date}.zip`);
+      toast({ title: 'Backup complete', description: `"${booklet.title}" was saved to a zip file.` });
     } catch (err: any) {
       setBackupError(err.message || 'Backup failed. See console for details.');
     } finally {
