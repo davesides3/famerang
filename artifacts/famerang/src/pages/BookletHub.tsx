@@ -84,6 +84,10 @@ export function BookletHub() {
   const [isExportingBooklet, setIsExportingBooklet] = useState(false);
   const [isRestoringBooklet, setIsRestoringBooklet] = useState(false);
   const [backupError, setBackupError] = useState<string | null>(null);
+  // On mobile the Web Share API requires a fresh user gesture — the async
+  // zip build discards the original tap's gesture context. After generation
+  // we park the blob here and show a "Tap to Share" button instead.
+  const [backupReadyBlob, setBackupReadyBlob] = useState<{ blob: Blob; filename: string } | null>(null);
   const restoreFileInputRef = useRef<HTMLInputElement>(null);
 
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -245,12 +249,21 @@ export function BookletHub() {
     if (!id) return;
     try {
       setBackupError(null);
+      setBackupReadyBlob(null);
       setIsExportingBooklet(true);
       const blob = await exportBookletZip(id);
-      const safeTitle = booklet.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const safeTitle = booklet.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
       const date = new Date().toISOString().split('T')[0];
-      await shareOrDownloadFile(blob, `famerang-booklet-${safeTitle}-${date}.zip`, 'application/zip');
-      toast({ title: 'Backup complete', description: `"${booklet.title}" was saved to a zip file.` });
+      const filename = `${safeTitle}-backup-${date}.zip`;
+      if (isTouchDevice()) {
+        // Park the blob — the user-gesture context has been consumed by the
+        // async zip build, so navigator.share() must be triggered by a new tap.
+        setBackupReadyBlob({ blob, filename });
+        toast({ title: 'Backup ready', description: 'Tap "Share Backup" to save or send the file.' });
+      } else {
+        await shareOrDownloadFile(blob, filename, 'application/zip');
+        toast({ title: 'Backup complete', description: `"${booklet.title}" was saved to a zip file.` });
+      }
     } catch (err: any) {
       setBackupError(err.message || 'Backup failed. See console for details.');
     } finally {
@@ -768,6 +781,21 @@ export function BookletHub() {
               {isExportingBooklet ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Backup'}
             </PaperButton>
           </PaperCard>
+
+          {backupReadyBlob && (
+            <PaperButton
+              type="button"
+              className="w-full flex items-center justify-center gap-2"
+              onClick={async () => {
+                const { blob, filename } = backupReadyBlob;
+                setBackupReadyBlob(null);
+                await shareOrDownloadFile(blob, filename, 'application/zip');
+              }}
+            >
+              <Share2 className="w-4 h-4" />
+              Share Backup
+            </PaperButton>
+          )}
 
           <PaperCard className="flex items-center gap-4 p-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
