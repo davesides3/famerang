@@ -1,3 +1,7 @@
+2026-08-08 Saturday
+- tweak sticker export for more useful file name
+- tweak README file for GitHub
+
 2026-08-07 Friday
 - working on Pinterest assets
 - tweak backup for more useful file name
