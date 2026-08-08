@@ -82,7 +82,7 @@ export function StickerPackDetail() {
     if (!packageId || !pkg) return;
     const blob = await exportStickerPackZip(packageId);
     const safeName = pkg.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    await shareOrDownloadFile(blob, `famerang-${safeName}.zip`, 'application/zip');
+    await shareOrDownloadFile(blob, `${safeName}-stickers.zip`, 'application/zip');
   };
 
   const handlePdf = async () => {
